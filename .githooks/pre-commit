@@ -1,0 +1,17 @@
+#!/bin/sh
+# Pre-commit hook for grub
+# Runs linting on staged Go files
+
+set -e
+
+# Check if there are staged Go files
+STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+
+if [ -z "$STAGED_GO_FILES" ]; then
+    exit 0
+fi
+
+echo "Running linter..."
+make lint
+
+echo "Pre-commit checks passed"

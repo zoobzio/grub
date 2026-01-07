@@ -22,12 +22,14 @@ lint-fix:          ## Run linter with auto-fix
 
 ## Coverage
 coverage:          ## Generate coverage report
-	go test -coverprofile=coverage.out ./...
+	go test -coverprofile=coverage.out -covermode=atomic ./...
 	go tool cover -html=coverage.out -o coverage.html
 
 ## Tooling
 install-hooks:     ## Install git hooks
-	@echo "No hooks configured"
+	git config core.hooksPath .githooks
+	chmod +x .githooks/*
+	@echo "Git hooks installed"
 
 install-tools:     ## Install development tools
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6
