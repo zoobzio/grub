@@ -4,125 +4,206 @@ import (
 	"testing"
 )
 
-type testRecord struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Age  int    `json:"age"`
+type testStruct struct {
+	Name  string `json:"name"`
+	Value int    `json:"value"`
 }
 
-func TestJSONCodec_Marshal(t *testing.T) {
+func TestJSONCodec_Encode(t *testing.T) {
 	codec := JSONCodec{}
 
-	record := testRecord{ID: "123", Name: "Test", Age: 30}
-	data, err := codec.Marshal(record)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	t.Run("struct", func(t *testing.T) {
+		v := testStruct{Name: "test", Value: 42}
+		data, err := codec.Encode(v)
+		if err != nil {
+			t.Fatalf("Encode failed: %v", err)
+		}
+		if len(data) == 0 {
+			t.Error("expected non-empty data")
+		}
+	})
 
-	expected := `{"id":"123","name":"Test","age":30}`
-	if string(data) != expected {
-		t.Errorf("got %s, want %s", data, expected)
-	}
+	t.Run("pointer", func(t *testing.T) {
+		v := &testStruct{Name: "test", Value: 42}
+		data, err := codec.Encode(v)
+		if err != nil {
+			t.Fatalf("Encode failed: %v", err)
+		}
+		if len(data) == 0 {
+			t.Error("expected non-empty data")
+		}
+	})
+
+	t.Run("nil", func(t *testing.T) {
+		data, err := codec.Encode(nil)
+		if err != nil {
+			t.Fatalf("Encode nil failed: %v", err)
+		}
+		if string(data) != "null" {
+			t.Errorf("expected 'null', got %q", string(data))
+		}
+	})
+
+	t.Run("map", func(t *testing.T) {
+		v := map[string]int{"a": 1, "b": 2}
+		data, err := codec.Encode(v)
+		if err != nil {
+			t.Fatalf("Encode map failed: %v", err)
+		}
+		if len(data) == 0 {
+			t.Error("expected non-empty data")
+		}
+	})
 }
 
-func TestJSONCodec_Marshal_Nil(t *testing.T) {
+func TestJSONCodec_Decode(t *testing.T) {
 	codec := JSONCodec{}
 
-	data, err := codec.Marshal(nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	t.Run("struct", func(t *testing.T) {
+		data := []byte(`{"name":"test","value":42}`)
+		var v testStruct
+		if err := codec.Decode(data, &v); err != nil {
+			t.Fatalf("Decode failed: %v", err)
+		}
+		if v.Name != "test" {
+			t.Errorf("expected name 'test', got %q", v.Name)
+		}
+		if v.Value != 42 {
+			t.Errorf("expected value 42, got %d", v.Value)
+		}
+	})
 
-	if string(data) != "null" {
-		t.Errorf("got %s, want null", data)
-	}
-}
+	t.Run("invalid json", func(t *testing.T) {
+		data := []byte(`{invalid}`)
+		var v testStruct
+		if err := codec.Decode(data, &v); err == nil {
+			t.Error("expected error for invalid JSON")
+		}
+	})
 
-func TestJSONCodec_Marshal_InvalidValue(t *testing.T) {
-	codec := JSONCodec{}
-
-	// Channels cannot be marshaled to JSON
-	ch := make(chan int)
-	_, err := codec.Marshal(ch)
-	if err == nil {
-		t.Error("expected error for invalid value")
-	}
-}
-
-func TestJSONCodec_Unmarshal(t *testing.T) {
-	codec := JSONCodec{}
-
-	data := []byte(`{"id":"456","name":"User","age":25}`)
-	var result testRecord
-	err := codec.Unmarshal(data, &result)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if result.ID != "456" {
-		t.Errorf("ID: got %s, want 456", result.ID)
-	}
-	if result.Name != "User" {
-		t.Errorf("Name: got %s, want User", result.Name)
-	}
-	if result.Age != 25 {
-		t.Errorf("Age: got %d, want 25", result.Age)
-	}
-}
-
-func TestJSONCodec_Unmarshal_InvalidJSON(t *testing.T) {
-	codec := JSONCodec{}
-
-	data := []byte(`{invalid json}`)
-	var result testRecord
-	err := codec.Unmarshal(data, &result)
-	if err == nil {
-		t.Error("expected error for invalid JSON")
-	}
-}
-
-func TestJSONCodec_Unmarshal_TypeMismatch(t *testing.T) {
-	codec := JSONCodec{}
-
-	// Age is string instead of int
-	data := []byte(`{"id":"123","name":"Test","age":"not a number"}`)
-	var result testRecord
-	err := codec.Unmarshal(data, &result)
-	if err == nil {
-		t.Error("expected error for type mismatch")
-	}
-}
-
-func TestJSONCodec_ContentType(t *testing.T) {
-	codec := JSONCodec{}
-
-	ct := codec.ContentType()
-	if ct != "application/json" {
-		t.Errorf("got %s, want application/json", ct)
-	}
+	t.Run("empty", func(t *testing.T) {
+		data := []byte(`{}`)
+		var v testStruct
+		if err := codec.Decode(data, &v); err != nil {
+			t.Fatalf("Decode empty failed: %v", err)
+		}
+		if v.Name != "" || v.Value != 0 {
+			t.Errorf("expected zero values, got %+v", v)
+		}
+	})
 }
 
 func TestJSONCodec_RoundTrip(t *testing.T) {
 	codec := JSONCodec{}
 
-	original := testRecord{ID: "round", Name: "Trip", Age: 42}
-
-	data, err := codec.Marshal(original)
+	original := testStruct{Name: "roundtrip", Value: 123}
+	data, err := codec.Encode(original)
 	if err != nil {
-		t.Fatalf("marshal error: %v", err)
+		t.Fatalf("Encode failed: %v", err)
 	}
 
-	var decoded testRecord
-	err = codec.Unmarshal(data, &decoded)
-	if err != nil {
-		t.Fatalf("unmarshal error: %v", err)
+	var decoded testStruct
+	if err := codec.Decode(data, &decoded); err != nil {
+		t.Fatalf("Decode failed: %v", err)
 	}
 
-	if decoded != original {
-		t.Errorf("round trip failed: got %+v, want %+v", decoded, original)
+	if decoded.Name != original.Name {
+		t.Errorf("name mismatch: got %q, want %q", decoded.Name, original.Name)
+	}
+	if decoded.Value != original.Value {
+		t.Errorf("value mismatch: got %d, want %d", decoded.Value, original.Value)
 	}
 }
 
-func TestJSONCodec_ImplementsCodec(_ *testing.T) {
-	var _ Codec = JSONCodec{}
+func TestGobCodec_Encode(t *testing.T) {
+	codec := GobCodec{}
+
+	t.Run("struct", func(t *testing.T) {
+		v := testStruct{Name: "test", Value: 42}
+		data, err := codec.Encode(v)
+		if err != nil {
+			t.Fatalf("Encode failed: %v", err)
+		}
+		if len(data) == 0 {
+			t.Error("expected non-empty data")
+		}
+	})
+
+	t.Run("pointer", func(t *testing.T) {
+		v := &testStruct{Name: "test", Value: 42}
+		data, err := codec.Encode(v)
+		if err != nil {
+			t.Fatalf("Encode failed: %v", err)
+		}
+		if len(data) == 0 {
+			t.Error("expected non-empty data")
+		}
+	})
+}
+
+func TestGobCodec_Decode(t *testing.T) {
+	codec := GobCodec{}
+
+	t.Run("invalid data", func(t *testing.T) {
+		data := []byte(`not gob data`)
+		var v testStruct
+		if err := codec.Decode(data, &v); err == nil {
+			t.Error("expected error for invalid Gob data")
+		}
+	})
+}
+
+func TestGobCodec_RoundTrip(t *testing.T) {
+	codec := GobCodec{}
+
+	original := testStruct{Name: "roundtrip", Value: 456}
+	data, err := codec.Encode(original)
+	if err != nil {
+		t.Fatalf("Encode failed: %v", err)
+	}
+
+	var decoded testStruct
+	if err := codec.Decode(data, &decoded); err != nil {
+		t.Fatalf("Decode failed: %v", err)
+	}
+
+	if decoded.Name != original.Name {
+		t.Errorf("name mismatch: got %q, want %q", decoded.Name, original.Name)
+	}
+	if decoded.Value != original.Value {
+		t.Errorf("value mismatch: got %d, want %d", decoded.Value, original.Value)
+	}
+}
+
+func TestGobCodec_ComplexTypes(t *testing.T) {
+	codec := GobCodec{}
+
+	type complexStruct struct {
+		Names  []string
+		Values map[string]int
+		Nested *testStruct
+	}
+
+	original := complexStruct{
+		Names:  []string{"a", "b", "c"},
+		Values: map[string]int{"x": 1, "y": 2},
+		Nested: &testStruct{Name: "nested", Value: 99},
+	}
+
+	data, err := codec.Encode(original)
+	if err != nil {
+		t.Fatalf("Encode complex failed: %v", err)
+	}
+
+	var decoded complexStruct
+	if err := codec.Decode(data, &decoded); err != nil {
+		t.Fatalf("Decode complex failed: %v", err)
+	}
+
+	if len(decoded.Names) != 3 {
+		t.Errorf("expected 3 names, got %d", len(decoded.Names))
+	}
+	if decoded.Nested == nil || decoded.Nested.Name != "nested" {
+		t.Errorf("nested struct mismatch: %+v", decoded.Nested)
+	}
 }

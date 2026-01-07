@@ -1,72 +1,54 @@
-.PHONY: test lint coverage clean all help check ci
+.PHONY: test lint lint-fix coverage clean check ci help test-unit test-integration test-bench install-hooks install-tools
 
-# Default target
-all: test lint
+## Testing
+test:              ## Run all tests
+	go test -race ./...
 
-# Display help
-help:
-	@echo "grub Development Commands"
-	@echo "========================="
-	@echo ""
-	@echo "Testing & Quality:"
-	@echo "  make test            - Run unit tests with race detector"
-	@echo "  make test-pkg        - Run provider package tests"
-	@echo "  make lint            - Run linters"
-	@echo "  make lint-fix        - Run linters with auto-fix"
-	@echo "  make coverage        - Generate coverage report (HTML)"
-	@echo "  make check           - Run tests and lint (quick check)"
-	@echo "  make ci              - Full CI simulation (all tests + lint + coverage)"
-	@echo ""
-	@echo "Other:"
-	@echo "  make install-tools   - Install required development tools"
-	@echo "  make clean           - Clean generated files"
-	@echo "  make all             - Run tests and lint (default)"
+test-unit:         ## Run unit tests only
+	go test -race -short ./...
 
-# Run tests with race detector
-test:
-	@echo "Running tests..."
-	@go test -v -race ./...
+test-integration:  ## Run integration tests
+	go test -race ./testing/integration/...
 
-# Run provider package tests
-test-pkg:
-	@echo "Running provider tests..."
-	@go test -v -race ./pkg/...
+test-bench:        ## Run benchmarks
+	go test -bench=. -benchmem ./testing/benchmarks/...
 
-# Run linters
-lint:
-	@echo "Running linters..."
-	@golangci-lint run --config=.golangci.yml --timeout=5m
+## Linting
+lint:              ## Run linter
+	golangci-lint run
 
-# Run linters with auto-fix
-lint-fix:
-	@echo "Running linters with auto-fix..."
-	@golangci-lint run --config=.golangci.yml --fix
+lint-fix:          ## Run linter with auto-fix
+	golangci-lint run --fix
 
-# Generate coverage report
-coverage:
-	@echo "Generating coverage report..."
-	@go test -coverprofile=coverage.out ./...
-	@go tool cover -html=coverage.out -o coverage.html
-	@go tool cover -func=coverage.out | tail -1
-	@echo "Coverage report generated: coverage.html"
+## Coverage
+coverage:          ## Generate coverage report
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
 
-# Clean generated files
-clean:
-	@echo "Cleaning..."
-	@rm -f coverage.out coverage.html
-	@find . -name "*.test" -delete
-	@find . -name "*.prof" -delete
-	@find . -name "*.out" -delete
+## Tooling
+install-hooks:     ## Install git hooks
+	@echo "No hooks configured"
 
-# Install development tools
-install-tools:
-	@echo "Installing development tools..."
-	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
+install-tools:     ## Install development tools
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6
 
-# Quick check - run tests and lint
-check: test lint
-	@echo "All checks passed!"
+## Maintenance
+clean:             ## Remove generated files
+	rm -f coverage.out coverage.html
 
-# CI simulation - what CI runs locally
-ci: clean lint test coverage
-	@echo "Full CI simulation complete!"
+## Workflow
+check:             ## Quick validation (test + lint)
+	$(MAKE) test
+	$(MAKE) lint
+
+ci:                ## Full CI simulation
+	$(MAKE) clean
+	$(MAKE) lint
+	$(MAKE) test
+	$(MAKE) coverage
+
+## Help
+help:              ## Display this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+.DEFAULT_GOAL := help

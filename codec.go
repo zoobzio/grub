@@ -1,24 +1,43 @@
 package grub
 
-import "encoding/json"
+import (
+	"bytes"
+	"encoding/gob"
+	"encoding/json"
+)
+
+// Codec defines encoding/decoding operations for Store values.
+type Codec interface {
+	Encode(v any) ([]byte, error)
+	Decode(data []byte, v any) error
+}
 
 // JSONCodec implements Codec using JSON encoding.
 type JSONCodec struct{}
 
-// Marshal serializes a value to JSON bytes.
-func (JSONCodec) Marshal(v any) ([]byte, error) {
+// Encode marshals v to JSON bytes.
+func (JSONCodec) Encode(v any) ([]byte, error) {
 	return json.Marshal(v)
 }
 
-// Unmarshal deserializes JSON bytes into a value.
-func (JSONCodec) Unmarshal(data []byte, v any) error {
+// Decode unmarshals JSON data into v.
+func (JSONCodec) Decode(data []byte, v any) error {
 	return json.Unmarshal(data, v)
 }
 
-// ContentType returns the JSON MIME type.
-func (JSONCodec) ContentType() string {
-	return "application/json"
+// GobCodec implements Codec using Gob encoding.
+type GobCodec struct{}
+
+// Encode marshals v to Gob bytes.
+func (GobCodec) Encode(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := gob.NewEncoder(&buf).Encode(v); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
-// Ensure JSONCodec implements Codec.
-var _ Codec = JSONCodec{}
+// Decode unmarshals Gob data into v.
+func (GobCodec) Decode(data []byte, v any) error {
+	return gob.NewDecoder(bytes.NewReader(data)).Decode(v)
+}
