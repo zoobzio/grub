@@ -57,8 +57,8 @@ func (b *Bucket[T]) Get(ctx context.Context, key string) (*Object, error) {
 		return nil, err
 	}
 	var payload T
-	if err := b.codec.Decode(data, &payload); err != nil {
-		return nil, err
+	if decErr := b.codec.Decode(data, &payload); decErr != nil {
+		return nil, decErr
 	}
 	atomizer, err := atom.Use[T]()
 	if err != nil {

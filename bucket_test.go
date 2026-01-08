@@ -24,7 +24,7 @@ func newMockBucketProvider() *mockBucketProvider {
 	}
 }
 
-func (m *mockBucketProvider) Get(_ context.Context, key string) ([]byte, *ObjectInfo, error) {
+func (m *mockBucketProvider) Get(_ context.Context, key string) (retData []byte, retInfo *ObjectInfo, retErr error) {
 	if m.getErr != nil {
 		return nil, nil, m.getErr
 	}
@@ -74,7 +74,7 @@ func (m *mockBucketProvider) List(_ context.Context, prefix string, limit int) (
 	}
 	var results []ObjectInfo
 	for k, info := range m.info {
-		if len(prefix) == 0 || (len(k) >= len(prefix) && k[:len(prefix)] == prefix) {
+		if prefix == "" || (len(k) >= len(prefix) && k[:len(prefix)] == prefix) {
 			if info != nil {
 				results = append(results, *info)
 			} else {

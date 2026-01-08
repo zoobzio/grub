@@ -57,11 +57,11 @@ func (d *Database[T]) Get(ctx context.Context, key string) (*T, error) {
 
 // Set stores value at key (insert or update via upsert).
 func (d *Database[T]) Set(ctx context.Context, _ string, value *T) error {
-	soy := d.factory.Soy()
+	s := d.factory.Soy()
 	// Use InsertFull to include PK in the INSERT for proper ON CONFLICT matching
-	insert := soy.InsertFull().OnConflict(d.keyCol).DoUpdate()
+	insert := s.InsertFull().OnConflict(d.keyCol).DoUpdate()
 
-	for _, field := range soy.Metadata().Fields {
+	for _, field := range s.Metadata().Fields {
 		col := field.Tags["db"]
 		if col == "" || col == "-" || col == d.keyCol {
 			continue

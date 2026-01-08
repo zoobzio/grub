@@ -67,7 +67,7 @@ func (m *mockStoreProvider) List(_ context.Context, prefix string, limit int) ([
 	}
 	var keys []string
 	for k := range m.data {
-		if len(prefix) == 0 || (len(k) >= len(prefix) && k[:len(prefix)] == prefix) {
+		if prefix == "" || (len(k) >= len(prefix) && k[:len(prefix)] == prefix) {
 			keys = append(keys, k)
 			if limit > 0 && len(keys) >= limit {
 				break

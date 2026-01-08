@@ -52,8 +52,8 @@ func (s *Store[T]) Get(ctx context.Context, key string) (*atom.Atom, error) {
 		return nil, err
 	}
 	var value T
-	if err := s.codec.Decode(data, &value); err != nil {
-		return nil, err
+	if decErr := s.codec.Decode(data, &value); decErr != nil {
+		return nil, decErr
 	}
 	atomizer, err := atom.Use[T]()
 	if err != nil {
