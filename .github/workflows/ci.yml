@@ -58,6 +58,11 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25'
+      - name: Setup Go workspace
+        run: |
+          go work init .
+          go work use ./azure ./badger ./bolt ./gcs ./mariadb ./mssql
+          go work use ./postgres ./redis ./s3 ./sqlite ./testing
       - run: make test-bench
 
   ci-complete:

@@ -39,9 +39,8 @@ jobs:
     - name: Setup Go workspace
       run: |
         go work init .
-        go work use ./pkg/redis ./pkg/s3 ./pkg/mongo ./pkg/dynamo
-        go work use ./pkg/firestore ./pkg/gcs ./pkg/azure ./pkg/bolt ./pkg/badger
-        go work use ./testing
+        go work use ./azure ./badger ./bolt ./gcs ./mariadb ./mssql
+        go work use ./postgres ./redis ./s3 ./sqlite ./testing
 
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
