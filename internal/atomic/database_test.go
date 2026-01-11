@@ -2,6 +2,7 @@ package atomic
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/zoobzio/atom"
 	"github.com/zoobzio/edamame"
 	"github.com/zoobzio/grub/internal/mockdb"
+	"github.com/zoobzio/grub/internal/shared"
 	"github.com/zoobzio/sentinel"
 )
 
@@ -282,5 +284,135 @@ func TestDatabase_Select(t *testing.T) {
 	}
 	if !strings.Contains(query.Query, `"email"`) {
 		t.Errorf("expected email column in query, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_Get_NotFound(t *testing.T) {
+	mockDB, _ := mockdb.New()
+	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
+	if err != nil {
+		t.Fatalf("failed to create executor: %v", err)
+	}
+
+	atomizer, _ := atom.Use[TestUser]()
+	spec := atomizer.Spec()
+	db := New[TestUser](executor, "id", "test_users", spec)
+
+	ctx := context.Background()
+
+	// mockdb returns empty rows, which should result in shared.ErrNotFound
+	_, err = db.Get(ctx, "nonexistent")
+	if err == nil {
+		t.Error("expected error for missing key")
+	}
+	if !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("expected shared.ErrNotFound, got: %v", err)
+	}
+}
+
+func TestDatabase_Get_QueryError(t *testing.T) {
+	mockDB, _, cfg := mockdb.NewWithConfig()
+	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
+	if err != nil {
+		t.Fatalf("failed to create executor: %v", err)
+	}
+
+	atomizer, _ := atom.Use[TestUser]()
+	spec := atomizer.Spec()
+	db := New[TestUser](executor, "id", "test_users", spec)
+
+	ctx := context.Background()
+
+	// Configure mock to return an error
+	queryErr := errors.New("database connection error")
+	cfg.SetQueryErr(queryErr)
+	defer cfg.Reset()
+
+	_, err = db.Get(ctx, "123")
+	if err == nil {
+		t.Error("expected query error")
+	}
+	if !strings.Contains(err.Error(), "database connection error") {
+		t.Errorf("expected database error, got: %v", err)
+	}
+}
+
+func TestDatabase_Delete_NotFound(t *testing.T) {
+	mockDB, _, cfg := mockdb.NewWithConfig()
+	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
+	if err != nil {
+		t.Fatalf("failed to create executor: %v", err)
+	}
+
+	atomizer, _ := atom.Use[TestUser]()
+	spec := atomizer.Spec()
+	db := New[TestUser](executor, "id", "test_users", spec)
+
+	ctx := context.Background()
+
+	// Configure mock to return 0 rows affected
+	cfg.SetRowsAffected(0)
+	defer cfg.Reset()
+
+	err = db.Delete(ctx, "nonexistent")
+	if err == nil {
+		t.Error("expected shared.ErrNotFound for 0 rows affected")
+	}
+	if !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("expected shared.ErrNotFound, got: %v", err)
+	}
+}
+
+func TestDatabase_Delete_ExecError(t *testing.T) {
+	mockDB, _, cfg := mockdb.NewWithConfig()
+	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
+	if err != nil {
+		t.Fatalf("failed to create executor: %v", err)
+	}
+
+	atomizer, _ := atom.Use[TestUser]()
+	spec := atomizer.Spec()
+	db := New[TestUser](executor, "id", "test_users", spec)
+
+	ctx := context.Background()
+
+	// Configure mock to return an exec error
+	execErr := errors.New("database exec error")
+	cfg.SetExecErr(execErr)
+	defer cfg.Reset()
+
+	err = db.Delete(ctx, "123")
+	if err == nil {
+		t.Error("expected exec error")
+	}
+	if !strings.Contains(err.Error(), "database exec error") {
+		t.Errorf("expected exec error, got: %v", err)
+	}
+}
+
+func TestDatabase_Exists_QueryError(t *testing.T) {
+	mockDB, _, cfg := mockdb.NewWithConfig()
+	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
+	if err != nil {
+		t.Fatalf("failed to create executor: %v", err)
+	}
+
+	atomizer, _ := atom.Use[TestUser]()
+	spec := atomizer.Spec()
+	db := New[TestUser](executor, "id", "test_users", spec)
+
+	ctx := context.Background()
+
+	// Configure mock to return a query error
+	queryErr := errors.New("exists query error")
+	cfg.SetQueryErr(queryErr)
+	defer cfg.Reset()
+
+	_, err = db.Exists(ctx, "123")
+	if err == nil {
+		t.Error("expected query error")
+	}
+	if !strings.Contains(err.Error(), "exists query error") {
+		t.Errorf("expected query error, got: %v", err)
 	}
 }

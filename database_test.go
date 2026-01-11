@@ -2,6 +2,7 @@ package grub
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -376,4 +377,115 @@ func TestDatabase_Atomic(t *testing.T) {
 
 func intPtr(i int) *int {
 	return &i
+}
+
+func TestDatabase_Get_NotFound(t *testing.T) {
+	mockDB, _ := mockdb.New()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	// mockdb returns empty rows, which should result in ErrNotFound
+	_, err = db.Get(ctx, "nonexistent")
+	if err == nil {
+		t.Error("expected error for missing key")
+	}
+	// The error should be ErrNotFound (mapped from soy.ErrNotFound)
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got: %v", err)
+	}
+}
+
+func TestDatabase_Get_QueryError(t *testing.T) {
+	mockDB, _, cfg := mockdb.NewWithConfig()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	// Configure mock to return an error
+	queryErr := errors.New("database connection error")
+	cfg.SetQueryErr(queryErr)
+	defer cfg.Reset()
+
+	_, err = db.Get(ctx, "123")
+	if err == nil {
+		t.Error("expected query error")
+	}
+	if !strings.Contains(err.Error(), "database connection error") {
+		t.Errorf("expected database error, got: %v", err)
+	}
+}
+
+func TestDatabase_Delete_NotFound(t *testing.T) {
+	mockDB, _, cfg := mockdb.NewWithConfig()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	// Configure mock to return 0 rows affected (simulates key not found)
+	cfg.SetRowsAffected(0)
+	defer cfg.Reset()
+
+	err = db.Delete(ctx, "nonexistent")
+	if err == nil {
+		t.Error("expected ErrNotFound for 0 rows affected")
+	}
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got: %v", err)
+	}
+}
+
+func TestDatabase_Delete_ExecError(t *testing.T) {
+	mockDB, _, cfg := mockdb.NewWithConfig()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	// Configure mock to return an exec error
+	execErr := errors.New("database exec error")
+	cfg.SetExecErr(execErr)
+	defer cfg.Reset()
+
+	err = db.Delete(ctx, "123")
+	if err == nil {
+		t.Error("expected exec error")
+	}
+	if !strings.Contains(err.Error(), "database exec error") {
+		t.Errorf("expected exec error, got: %v", err)
+	}
+}
+
+func TestDatabase_Exists_QueryError(t *testing.T) {
+	mockDB, _, cfg := mockdb.NewWithConfig()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	// Configure mock to return a query error
+	queryErr := errors.New("exists query error")
+	cfg.SetQueryErr(queryErr)
+	defer cfg.Reset()
+
+	_, err = db.Exists(ctx, "123")
+	if err == nil {
+		t.Error("expected query error")
+	}
+	if !strings.Contains(err.Error(), "exists query error") {
+		t.Errorf("expected query error, got: %v", err)
+	}
 }
