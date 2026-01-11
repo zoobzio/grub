@@ -45,9 +45,26 @@ jobs:
       - name: Run linting
         uses: golangci/golangci-lint-action@v7
 
+  tag-submodules:
+    name: Tag Submodules
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Tag submodules
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          for mod in azure badger bolt gcs mariadb mssql postgres redis s3 sqlite testing; do
+            git tag "${mod}/${VERSION}"
+          done
+          git push origin --tags
+
   release:
     name: Create Release
-    needs: validate
+    needs: tag-submodules
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -66,6 +83,7 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ github.ref_name }}
 
       - name: Upload Release Assets
         uses: actions/upload-artifact@v4

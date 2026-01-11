@@ -139,6 +139,15 @@ func TestGobCodec_Encode(t *testing.T) {
 			t.Error("expected non-empty data")
 		}
 	})
+
+	t.Run("unencodable type", func(t *testing.T) {
+		// Gob cannot encode functions
+		fn := func() {}
+		_, err := codec.Encode(fn)
+		if err == nil {
+			t.Error("expected error encoding function")
+		}
+	})
 }
 
 func TestGobCodec_Decode(t *testing.T) {

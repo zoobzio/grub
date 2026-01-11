@@ -14,16 +14,16 @@ import (
 // Database provides atom-based storage operations.
 // Derived from grub.Database[T] via Atomic(), satisfies grub.AtomicDatabase interface.
 type Database[T any] struct {
-	factory   *edamame.Factory[T]
+	executor  *edamame.Executor[T]
 	keyCol    string
 	tableName string
 	spec      atom.Spec
 }
 
 // New creates an atomic Database wrapper.
-func New[T any](factory *edamame.Factory[T], keyCol, tableName string, spec atom.Spec) *Database[T] {
+func New[T any](executor *edamame.Executor[T], keyCol, tableName string, spec atom.Spec) *Database[T] {
 	return &Database[T]{
-		factory:   factory,
+		executor:  executor,
 		keyCol:    keyCol,
 		tableName: tableName,
 		spec:      spec,
@@ -43,7 +43,7 @@ func (d *Database[T]) Spec() atom.Spec {
 // Get retrieves the record at key as an Atom.
 // Returns ErrNotFound if the key does not exist.
 func (d *Database[T]) Get(ctx context.Context, key string) (*atom.Atom, error) {
-	result, err := d.factory.Soy().Select().
+	result, err := d.executor.Soy().Select().
 		Where(d.keyCol, "=", "key").
 		ExecAtom(ctx, map[string]any{"key": key})
 	if err != nil {
@@ -66,7 +66,7 @@ func (d *Database[T]) Set(ctx context.Context, _ string, data *atom.Atom) error 
 		return err
 	}
 
-	s := d.factory.Soy()
+	s := d.executor.Soy()
 	insert := s.InsertFull().OnConflict(d.keyCol).DoUpdate()
 
 	for _, field := range s.Metadata().Fields {
@@ -83,7 +83,7 @@ func (d *Database[T]) Set(ctx context.Context, _ string, data *atom.Atom) error 
 
 // Delete removes the record at key.
 func (d *Database[T]) Delete(ctx context.Context, key string) error {
-	affected, err := d.factory.Soy().Remove().
+	affected, err := d.executor.Soy().Remove().
 		Where(d.keyCol, "=", "key").
 		Exec(ctx, map[string]any{"key": key})
 	if err != nil {
@@ -97,7 +97,7 @@ func (d *Database[T]) Delete(ctx context.Context, key string) error {
 
 // Exists checks whether a record exists at key.
 func (d *Database[T]) Exists(ctx context.Context, key string) (bool, error) {
-	results, err := d.factory.Soy().Query().
+	results, err := d.executor.Soy().Query().
 		Where(d.keyCol, "=", "key").
 		Limit(1).
 		Exec(ctx, map[string]any{"key": key})
@@ -107,12 +107,12 @@ func (d *Database[T]) Exists(ctx context.Context, key string) (bool, error) {
 	return len(results) > 0, nil
 }
 
-// Query executes a named query capability and returns atoms.
-func (d *Database[T]) Query(ctx context.Context, name string, params map[string]any) ([]*atom.Atom, error) {
-	return d.factory.ExecQueryAtom(ctx, name, params)
+// Query executes a query statement and returns atoms.
+func (d *Database[T]) Query(ctx context.Context, stmt edamame.QueryStatement, params map[string]any) ([]*atom.Atom, error) {
+	return d.executor.ExecQueryAtom(ctx, stmt, params)
 }
 
-// Select executes a named select capability and returns an atom.
-func (d *Database[T]) Select(ctx context.Context, name string, params map[string]any) (*atom.Atom, error) {
-	return d.factory.ExecSelectAtom(ctx, name, params)
+// Select executes a select statement and returns an atom.
+func (d *Database[T]) Select(ctx context.Context, stmt edamame.SelectStatement, params map[string]any) (*atom.Atom, error) {
+	return d.executor.ExecSelectAtom(ctx, stmt, params)
 }

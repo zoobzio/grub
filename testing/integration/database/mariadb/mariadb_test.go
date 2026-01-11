@@ -11,7 +11,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mariadb"
 	"github.com/testcontainers/testcontainers-go/wait"
-	astqlmariadb "github.com/zoobzio/astql/pkg/mariadb"
+	astqlmariadb "github.com/zoobzio/astql/mariadb"
 	"github.com/zoobzio/grub/testing/integration/database"
 )
 

@@ -78,7 +78,7 @@ func RunCRUDTests(t *testing.T, tc *TestContext) {
 // RunQueryTests runs the query engine test suite.
 func RunQueryTests(t *testing.T, tc *TestContext) {
 	t.Run("Query", func(t *testing.T) { testQuery(t, tc) })
-	t.Run("QueryWithCapability", func(t *testing.T) { testQueryWithCapability(t, tc) })
+	t.Run("QueryWithStatement", func(t *testing.T) { testQueryWithStatement(t, tc) })
 	t.Run("QueryAtom", func(t *testing.T) { testQueryAtom(t, tc) })
 	t.Run("Select", func(t *testing.T) { testSelect(t, tc) })
 	t.Run("SelectAtom", func(t *testing.T) { testSelectAtom(t, tc) })
@@ -323,7 +323,7 @@ func testQuery(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to create database: %v", err)
 	}
 
-	users, err := db.Query(ctx, "query", nil)
+	users, err := db.Query(ctx, grub.QueryAll, nil)
 	if err != nil {
 		t.Fatalf("Query failed: %v", err)
 	}
@@ -333,7 +333,7 @@ func testQuery(t *testing.T, tc *TestContext) {
 	}
 }
 
-func testQueryWithCapability(t *testing.T, tc *TestContext) {
+func testQueryWithStatement(t *testing.T, tc *TestContext) {
 	tc.Reset(t)
 	ctx := context.Background()
 
@@ -352,23 +352,16 @@ func testQueryWithCapability(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to create database: %v", err)
 	}
 
-	err = db.Factory().AddQuery(edamame.QueryCapability{
-		Name:        "by-min-age",
-		Description: "Users with age >= min_age",
-		Spec: edamame.QuerySpec{
-			Where: []edamame.ConditionSpec{
-				{Field: "age", Operator: ">=", Param: "min_age"},
-			},
-			OrderBy: []edamame.OrderBySpec{
-				{Field: "age", Direction: "asc"},
-			},
+	stmt := edamame.NewQueryStatement("by-min-age", "Users with age >= min_age", edamame.QuerySpec{
+		Where: []edamame.ConditionSpec{
+			{Field: "age", Operator: ">=", Param: "min_age"},
+		},
+		OrderBy: []edamame.OrderBySpec{
+			{Field: "age", Direction: "asc"},
 		},
 	})
-	if err != nil {
-		t.Fatalf("AddQuery failed: %v", err)
-	}
 
-	users, err := db.Query(ctx, "by-min-age", map[string]any{"min_age": 30})
+	users, err := db.Query(ctx, stmt, map[string]any{"min_age": 30})
 	if err != nil {
 		t.Fatalf("Query failed: %v", err)
 	}
@@ -400,9 +393,9 @@ func testQueryAtom(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to create database: %v", err)
 	}
 
-	atoms, err := db.Atomic().Query(ctx, "query", nil)
+	atoms, err := db.Atomic().Query(ctx, grub.QueryAll, nil)
 	if err != nil {
-		t.Fatalf("Atomic().QueryAtom failed: %v", err)
+		t.Fatalf("Atomic().Query failed: %v", err)
 	}
 
 	if len(atoms) != 2 {
@@ -436,20 +429,13 @@ func testSelect(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to create database: %v", err)
 	}
 
-	err = db.Factory().AddSelect(edamame.SelectCapability{
-		Name:        "by-email",
-		Description: "Find user by email",
-		Spec: edamame.SelectSpec{
-			Where: []edamame.ConditionSpec{
-				{Field: "email", Operator: "=", Param: "email"},
-			},
+	stmt := edamame.NewSelectStatement("by-email", "Find user by email", edamame.SelectSpec{
+		Where: []edamame.ConditionSpec{
+			{Field: "email", Operator: "=", Param: "email"},
 		},
 	})
-	if err != nil {
-		t.Fatalf("AddSelect failed: %v", err)
-	}
 
-	user, err := db.Select(ctx, "by-email", map[string]any{"email": "bob@example.com"})
+	user, err := db.Select(ctx, stmt, map[string]any{"email": "bob@example.com"})
 	if err != nil {
 		t.Fatalf("Select failed: %v", err)
 	}
@@ -476,22 +462,15 @@ func testSelectAtom(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to create database: %v", err)
 	}
 
-	err = db.Factory().AddSelect(edamame.SelectCapability{
-		Name:        "by-name",
-		Description: "Find user by name",
-		Spec: edamame.SelectSpec{
-			Where: []edamame.ConditionSpec{
-				{Field: "name", Operator: "=", Param: "name"},
-			},
+	stmt := edamame.NewSelectStatement("by-name", "Find user by name", edamame.SelectSpec{
+		Where: []edamame.ConditionSpec{
+			{Field: "name", Operator: "=", Param: "name"},
 		},
 	})
-	if err != nil {
-		t.Fatalf("AddSelect failed: %v", err)
-	}
 
-	a, err := db.Atomic().Select(ctx, "by-name", map[string]any{"name": "Carol"})
+	a, err := db.Atomic().Select(ctx, stmt, map[string]any{"name": "Carol"})
 	if err != nil {
-		t.Fatalf("Atomic().SelectAtom failed: %v", err)
+		t.Fatalf("Atomic().Select failed: %v", err)
 	}
 
 	if a.Strings["Name"] != "Carol" {
@@ -516,23 +495,16 @@ func testUpdate(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to create database: %v", err)
 	}
 
-	err = db.Factory().AddUpdate(edamame.UpdateCapability{
-		Name:        "rename-by-email",
-		Description: "Update user name by email",
-		Spec: edamame.UpdateSpec{
-			Set: map[string]string{
-				"name": "new_name",
-			},
-			Where: []edamame.ConditionSpec{
-				{Field: "email", Operator: "=", Param: "email"},
-			},
+	stmt := edamame.NewUpdateStatement("rename-by-email", "Update user name by email", edamame.UpdateSpec{
+		Set: map[string]string{
+			"name": "new_name",
+		},
+		Where: []edamame.ConditionSpec{
+			{Field: "email", Operator: "=", Param: "email"},
 		},
 	})
-	if err != nil {
-		t.Fatalf("AddUpdate failed: %v", err)
-	}
 
-	updated, err := db.Update(ctx, "rename-by-email", map[string]any{
+	updated, err := db.Update(ctx, stmt, map[string]any{
 		"email":    "update@example.com",
 		"new_name": "Updated",
 	})
@@ -572,15 +544,11 @@ func testAggregate(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to create database: %v", err)
 	}
 
-	result, err := db.Aggregate(ctx, "count", nil)
+	count, err := db.Aggregate(ctx, grub.CountAll, nil)
 	if err != nil {
 		t.Fatalf("Aggregate failed: %v", err)
 	}
 
-	count, ok := result.(float64)
-	if !ok {
-		t.Fatalf("expected float64, got %T", result)
-	}
 	if count != 3 {
 		t.Errorf("expected count 3, got %v", count)
 	}
@@ -605,27 +573,15 @@ func testAggregateSum(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to create database: %v", err)
 	}
 
-	err = db.Factory().AddAggregate(edamame.AggregateCapability{
-		Name:        "sum-age",
-		Description: "Sum of all ages",
-		Func:        edamame.AggSum,
-		Spec: edamame.AggregateSpec{
-			Field: "age",
-		},
+	stmt := edamame.NewAggregateStatement("sum-age", "Sum of all ages", edamame.AggSum, edamame.AggregateSpec{
+		Field: "age",
 	})
-	if err != nil {
-		t.Fatalf("AddAggregate failed: %v", err)
-	}
 
-	result, err := db.Aggregate(ctx, "sum-age", nil)
+	sum, err := db.Aggregate(ctx, stmt, nil)
 	if err != nil {
 		t.Fatalf("Aggregate failed: %v", err)
 	}
 
-	sum, ok := result.(float64)
-	if !ok {
-		t.Fatalf("expected float64, got %T", result)
-	}
 	if sum != 60 {
 		t.Errorf("expected sum 60, got %v", sum)
 	}
@@ -652,22 +608,15 @@ func testQueryPagination(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to create database: %v", err)
 	}
 
-	err = db.Factory().AddQuery(edamame.QueryCapability{
-		Name:        "paginated",
-		Description: "Paginated users ordered by age",
-		Spec: edamame.QuerySpec{
-			OrderBy: []edamame.OrderBySpec{
-				{Field: "age", Direction: "asc"},
-			},
-			LimitParam:  "limit",
-			OffsetParam: "offset",
+	stmt := edamame.NewQueryStatement("paginated", "Paginated users ordered by age", edamame.QuerySpec{
+		OrderBy: []edamame.OrderBySpec{
+			{Field: "age", Direction: "asc"},
 		},
+		LimitParam:  "limit",
+		OffsetParam: "offset",
 	})
-	if err != nil {
-		t.Fatalf("AddQuery failed: %v", err)
-	}
 
-	page1, err := db.Query(ctx, "paginated", map[string]any{"limit": 2, "offset": 0})
+	page1, err := db.Query(ctx, stmt, map[string]any{"limit": 2, "offset": 0})
 	if err != nil {
 		t.Fatalf("Query page 1 failed: %v", err)
 	}
@@ -678,7 +627,7 @@ func testQueryPagination(t *testing.T, tc *TestContext) {
 		t.Errorf("expected first user Alice, got %s", page1[0].Name)
 	}
 
-	page2, err := db.Query(ctx, "paginated", map[string]any{"limit": 2, "offset": 2})
+	page2, err := db.Query(ctx, stmt, map[string]any{"limit": 2, "offset": 2})
 	if err != nil {
 		t.Fatalf("Query page 2 failed: %v", err)
 	}

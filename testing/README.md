@@ -71,6 +71,18 @@ func TestSomething(t *testing.T) {
 }
 ```
 
+### Helper Conventions
+
+The helpers in `helpers.go` follow these conventions:
+
+- All helpers call `t.Helper()` for clean stack traces
+- All helpers accept `*testing.T` as the first parameter
+- Helpers are **generic assertions** rather than domain-specific utilities
+
+**Rationale:** Go's standard `testing` package lacks assertion helpers, leading to repetitive `if err != nil { t.Fatal(err) }` patterns throughout tests. These generic assertion functions (`AssertNoError`, `AssertEqual`, `AssertContains`, etc.) reduce boilerplate without introducing external dependencies like testify.
+
+Domain-specific test logic lives in the shared test suites (`integration/kv/shared.go`, `integration/bucket/shared.go`, `integration/database/shared.go`) rather than in individual helper functions.
+
 ### Using Shared Test Suites
 
 Integration tests use shared suites from `integration/kv/` and `integration/bucket/`:

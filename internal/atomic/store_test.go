@@ -76,6 +76,26 @@ func (jsonCodec) Decode(data []byte, v any) error {
 	return json.Unmarshal(data, v)
 }
 
+// failingCodec is a codec that can be configured to fail.
+type failingCodec struct {
+	encodeErr error
+	decodeErr error
+}
+
+func (f *failingCodec) Encode(v any) ([]byte, error) {
+	if f.encodeErr != nil {
+		return nil, f.encodeErr
+	}
+	return json.Marshal(v)
+}
+
+func (f *failingCodec) Decode(data []byte, v any) error {
+	if f.decodeErr != nil {
+		return f.decodeErr
+	}
+	return json.Unmarshal(data, v)
+}
+
 type testRecord struct {
 	ID   int64  `json:"id" atom:"id"`
 	Name string `json:"name" atom:"name"`
@@ -210,6 +230,19 @@ func TestStore_Set(t *testing.T) {
 		err := store.Set(ctx, "key3", a, 0)
 		if err == nil {
 			t.Error("expected provider error")
+		}
+	})
+
+	t.Run("encode error", func(t *testing.T) {
+		failCodec := &failingCodec{encodeErr: errors.New("encode failed")}
+		s := NewStore[testRecord](provider, failCodec, spec)
+
+		record := testRecord{ID: 4, Name: "encode-fail"}
+		a := atomizer.Atomize(&record)
+
+		err := s.Set(ctx, "key4", a, 0)
+		if err == nil {
+			t.Error("expected encode error")
 		}
 	})
 }

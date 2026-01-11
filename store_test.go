@@ -104,6 +104,26 @@ type testRecord struct {
 
 const testName = "test" // test fixture value
 
+// failingCodec is a codec that can be configured to fail on encode or decode.
+type failingCodec struct {
+	encodeErr error
+	decodeErr error
+}
+
+func (f *failingCodec) Encode(v any) ([]byte, error) {
+	if f.encodeErr != nil {
+		return nil, f.encodeErr
+	}
+	return JSONCodec{}.Encode(v)
+}
+
+func (f *failingCodec) Decode(data []byte, v any) error {
+	if f.decodeErr != nil {
+		return f.decodeErr
+	}
+	return JSONCodec{}.Decode(data, v)
+}
+
 func TestNewStore(t *testing.T) {
 	provider := newMockStoreProvider()
 	store := NewStore[testRecord](provider)
@@ -209,6 +229,17 @@ func TestStore_Set(t *testing.T) {
 		err := store.Set(ctx, "key3", record, 0)
 		if err == nil {
 			t.Error("expected provider error")
+		}
+	})
+
+	t.Run("encode error", func(t *testing.T) {
+		codec := &failingCodec{encodeErr: errors.New("encode failed")}
+		s := NewStoreWithCodec[testRecord](provider, codec)
+
+		record := &testRecord{ID: 4, Name: "encode-fail"}
+		err := s.Set(ctx, "key4", record, 0)
+		if err == nil {
+			t.Error("expected encode error")
 		}
 	})
 }
@@ -347,6 +378,16 @@ func TestStore_GetBatch(t *testing.T) {
 			t.Errorf("expected 0 results, got %d", len(result))
 		}
 	})
+
+	t.Run("decode error", func(t *testing.T) {
+		codec := &failingCodec{decodeErr: errors.New("decode failed")}
+		s := NewStoreWithCodec[testRecord](provider, codec)
+
+		_, err := s.GetBatch(ctx, []string{"batch1"})
+		if err == nil {
+			t.Error("expected decode error")
+		}
+	})
 }
 
 func TestStore_SetBatch(t *testing.T) {
@@ -379,6 +420,19 @@ func TestStore_SetBatch(t *testing.T) {
 		err := store.SetBatch(ctx, items, 0)
 		if err == nil {
 			t.Error("expected provider error")
+		}
+	})
+
+	t.Run("encode error", func(t *testing.T) {
+		codec := &failingCodec{encodeErr: errors.New("encode failed")}
+		s := NewStoreWithCodec[testRecord](provider, codec)
+
+		items := map[string]*testRecord{
+			"fail": {ID: 100, Name: "encode-fail"},
+		}
+		err := s.SetBatch(ctx, items, 0)
+		if err == nil {
+			t.Error("expected encode error")
 		}
 	})
 }

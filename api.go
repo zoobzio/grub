@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/zoobzio/atom"
+	"github.com/zoobzio/edamame"
 	"github.com/zoobzio/grub/internal/shared"
 )
 
@@ -102,11 +103,11 @@ type AtomicDatabase interface {
 	// Exists checks whether a record exists at key.
 	Exists(ctx context.Context, key string) (bool, error)
 
-	// Query executes a named query capability and returns atoms.
-	Query(ctx context.Context, name string, params map[string]any) ([]*atom.Atom, error)
+	// Query executes a query statement and returns atoms.
+	Query(ctx context.Context, stmt edamame.QueryStatement, params map[string]any) ([]*atom.Atom, error)
 
-	// Select executes a named select capability and returns an atom.
-	Select(ctx context.Context, name string, params map[string]any) (*atom.Atom, error)
+	// Select executes a select statement and returns an atom.
+	Select(ctx context.Context, stmt edamame.SelectStatement, params map[string]any) (*atom.Atom, error)
 }
 
 // BucketProvider defines raw blob storage operations.

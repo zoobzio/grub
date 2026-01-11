@@ -73,6 +73,26 @@ func (m *mockBucketProvider) Exists(_ context.Context, key string) (bool, error)
 	return ok, nil
 }
 
+// failingBucketCodec is a codec that can be configured to fail.
+type failingBucketCodec struct {
+	encodeErr error
+	decodeErr error
+}
+
+func (f *failingBucketCodec) Encode(v any) ([]byte, error) {
+	if f.encodeErr != nil {
+		return nil, f.encodeErr
+	}
+	return json.Marshal(v)
+}
+
+func (f *failingBucketCodec) Decode(data []byte, v any) error {
+	if f.decodeErr != nil {
+		return f.decodeErr
+	}
+	return json.Unmarshal(data, v)
+}
+
 type testPayload struct {
 	Field1 string `json:"field1" atom:"field1"`
 	Field2 int64  `json:"field2" atom:"field2"`
@@ -208,6 +228,24 @@ func TestBucket_Put(t *testing.T) {
 		err := bucket.Put(ctx, "fail-obj", obj)
 		if err == nil {
 			t.Error("expected provider error")
+		}
+	})
+
+	t.Run("encode error", func(t *testing.T) {
+		failCodec := &failingBucketCodec{encodeErr: errors.New("encode failed")}
+		b := NewBucket[testPayload](provider, failCodec, spec)
+
+		payload := testPayload{Field1: "encode-fail", Field2: 0}
+		a := atomizer.Atomize(&payload)
+
+		obj := &Object{
+			Key:  "encode-fail-obj",
+			Data: a,
+		}
+
+		err := b.Put(ctx, "encode-fail-obj", obj)
+		if err == nil {
+			t.Error("expected encode error")
 		}
 	})
 }

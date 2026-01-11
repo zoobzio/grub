@@ -11,7 +11,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mssql"
 	"github.com/testcontainers/testcontainers-go/wait"
-	astqlmssql "github.com/zoobzio/astql/pkg/mssql"
+	astqlmssql "github.com/zoobzio/astql/mssql"
 	"github.com/zoobzio/grub/testing/integration/database"
 )
 
