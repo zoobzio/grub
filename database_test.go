@@ -804,3 +804,87 @@ func TestDatabase_DeleteTx_NotFound(t *testing.T) {
 		t.Errorf("expected ErrNotFound, got: %v", err)
 	}
 }
+
+func TestDatabase_GetTx_QueryError(t *testing.T) {
+	mockDB, _, cfg := mockdb.NewWithConfig()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	queryErr := errors.New("tx query error")
+	cfg.SetQueryErr(queryErr)
+	defer cfg.Reset()
+
+	_, err = db.GetTx(ctx, tx, "123")
+	if err == nil {
+		t.Error("expected query error")
+	}
+	if !strings.Contains(err.Error(), "tx query error") {
+		t.Errorf("expected tx query error, got: %v", err)
+	}
+}
+
+func TestDatabase_DeleteTx_ExecError(t *testing.T) {
+	mockDB, _, cfg := mockdb.NewWithConfig()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	execErr := errors.New("tx exec error")
+	cfg.SetExecErr(execErr)
+	defer cfg.Reset()
+
+	err = db.DeleteTx(ctx, tx, "123")
+	if err == nil {
+		t.Error("expected exec error")
+	}
+	if !strings.Contains(err.Error(), "tx exec error") {
+		t.Errorf("expected tx exec error, got: %v", err)
+	}
+}
+
+func TestDatabase_ExistsTx_QueryError(t *testing.T) {
+	mockDB, _, cfg := mockdb.NewWithConfig()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	queryErr := errors.New("tx exists query error")
+	cfg.SetQueryErr(queryErr)
+	defer cfg.Reset()
+
+	_, err = db.ExistsTx(ctx, tx, "123")
+	if err == nil {
+		t.Error("expected query error")
+	}
+	if !strings.Contains(err.Error(), "tx exists query error") {
+		t.Errorf("expected tx query error, got: %v", err)
+	}
+}
