@@ -8,7 +8,7 @@ require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/zoobzio/astql v1.0.3
 	github.com/zoobzio/atom v1.0.0
-	github.com/zoobzio/edamame v1.0.0
+	github.com/zoobzio/edamame v1.0.1
 	github.com/zoobzio/sentinel v1.0.2
 	github.com/zoobzio/soy v1.0.0
 )

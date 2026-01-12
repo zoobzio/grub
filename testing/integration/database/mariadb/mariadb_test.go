@@ -83,3 +83,7 @@ func TestMariaDB_CRUD(t *testing.T) {
 func TestMariaDB_Query(t *testing.T) {
 	database.RunQueryTests(t, tc)
 }
+
+func TestMariaDB_Transaction(t *testing.T) {
+	database.RunTransactionTests(t, tc)
+}

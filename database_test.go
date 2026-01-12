@@ -489,3 +489,318 @@ func TestDatabase_Exists_QueryError(t *testing.T) {
 		t.Errorf("expected query error, got: %v", err)
 	}
 }
+
+// --- Transaction Method Tests ---
+
+func TestDatabase_GetTx(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	_, _ = db.GetTx(ctx, tx, "123")
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "SELECT") {
+		t.Errorf("expected SELECT query, got: %s", query.Query)
+	}
+	if !strings.Contains(query.Query, `"test_users"`) {
+		t.Errorf("expected table name in query, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_SetTx(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	user := &TestDBUser{
+		ID:    1,
+		Email: "test@example.com",
+		Name:  "Test User",
+		Age:   intPtr(30),
+	}
+
+	_ = db.SetTx(ctx, tx, "1", user)
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "INSERT") {
+		t.Errorf("expected INSERT query, got: %s", query.Query)
+	}
+	if !strings.Contains(query.Query, "ON CONFLICT") {
+		t.Errorf("expected ON CONFLICT clause for upsert, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_DeleteTx(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	_ = db.DeleteTx(ctx, tx, "123")
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "DELETE") {
+		t.Errorf("expected DELETE query, got: %s", query.Query)
+	}
+	if !strings.Contains(query.Query, `"test_users"`) {
+		t.Errorf("expected table name in query, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_ExistsTx(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	_, _ = db.ExistsTx(ctx, tx, "123")
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "SELECT") {
+		t.Errorf("expected SELECT query, got: %s", query.Query)
+	}
+	if !strings.Contains(query.Query, "LIMIT") {
+		t.Errorf("expected LIMIT clause, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_QueryTx(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	_, _ = db.QueryTx(ctx, tx, QueryAll, nil)
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "SELECT") {
+		t.Errorf("expected SELECT query, got: %s", query.Query)
+	}
+	if !strings.Contains(query.Query, `"test_users"`) {
+		t.Errorf("expected table name in query, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_SelectTx(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	stmt := edamame.NewSelectStatement("by-email", "Find user by email", edamame.SelectSpec{
+		Where: []edamame.ConditionSpec{
+			{Field: "email", Operator: "=", Param: "email"},
+		},
+	})
+
+	_, _ = db.SelectTx(ctx, tx, stmt, map[string]any{"email": "test@example.com"})
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "SELECT") {
+		t.Errorf("expected SELECT query, got: %s", query.Query)
+	}
+	if !strings.Contains(query.Query, `"email"`) {
+		t.Errorf("expected email column in query, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_UpdateTx(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	stmt := edamame.NewUpdateStatement("rename-by-email", "Update user name by email", edamame.UpdateSpec{
+		Set: map[string]string{
+			"name": "new_name",
+		},
+		Where: []edamame.ConditionSpec{
+			{Field: "email", Operator: "=", Param: "email"},
+		},
+	})
+
+	_, _ = db.UpdateTx(ctx, tx, stmt, map[string]any{
+		"email":    "test@example.com",
+		"new_name": "Updated",
+	})
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "UPDATE") {
+		t.Errorf("expected UPDATE query, got: %s", query.Query)
+	}
+	if !strings.Contains(query.Query, `"name"`) {
+		t.Errorf("expected name column in SET clause, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_AggregateTx(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	_, _ = db.AggregateTx(ctx, tx, CountAll, nil)
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "COUNT") {
+		t.Errorf("expected COUNT in query, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_GetTx_NotFound(t *testing.T) {
+	mockDB, _ := mockdb.New()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	_, err = db.GetTx(ctx, tx, "nonexistent")
+	if err == nil {
+		t.Error("expected error for missing key")
+	}
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got: %v", err)
+	}
+}
+
+func TestDatabase_DeleteTx_NotFound(t *testing.T) {
+	mockDB, _, cfg := mockdb.NewWithConfig()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	cfg.SetRowsAffected(0)
+	defer cfg.Reset()
+
+	err = db.DeleteTx(ctx, tx, "nonexistent")
+	if err == nil {
+		t.Error("expected ErrNotFound for 0 rows affected")
+	}
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got: %v", err)
+	}
+}

@@ -23,7 +23,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/redis v0.40.0
 	github.com/zoobzio/astql v1.0.3
 	github.com/zoobzio/atom v1.0.0
-	github.com/zoobzio/edamame v1.0.0
+	github.com/zoobzio/edamame v1.0.1
 	github.com/zoobzio/grub v0.0.0
 	github.com/zoobzio/grub/azure v0.0.0
 	github.com/zoobzio/grub/badger v0.0.0

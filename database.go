@@ -34,10 +34,8 @@ type Database[T any] struct {
 
 // NewDatabase creates a Database for type T.
 // keyCol specifies the column used for key-based lookups (e.g., "id").
-//
-// The db parameter accepts sqlx.ExtContext, which is satisfied by both *sqlx.DB and *sqlx.Tx,
-// enabling transaction support by passing a transaction instead of a database connection.
-func NewDatabase[T any](db sqlx.ExtContext, table, keyCol string, renderer astql.Renderer) (*Database[T], error) {
+// Use the *Tx method variants (GetTx, SetTx, etc.) for transaction support.
+func NewDatabase[T any](db *sqlx.DB, table, keyCol string, renderer astql.Renderer) (*Database[T], error) {
 	exec, err := edamame.New[T](db, table, renderer)
 	if err != nil {
 		return nil, err
@@ -131,6 +129,84 @@ func (d *Database[T]) Update(ctx context.Context, stmt edamame.UpdateStatement, 
 // Aggregate executes an aggregate statement.
 func (d *Database[T]) Aggregate(ctx context.Context, stmt edamame.AggregateStatement, params map[string]any) (float64, error) {
 	return d.executor.ExecAggregate(ctx, stmt, params)
+}
+
+// GetTx retrieves the record at key as T within a transaction.
+// Returns ErrNotFound if the key does not exist.
+func (d *Database[T]) GetTx(ctx context.Context, tx *sqlx.Tx, key string) (*T, error) {
+	result, err := d.executor.Soy().Select().
+		Where(d.keyCol, "=", "key").
+		ExecTx(ctx, tx, map[string]any{"key": key})
+	if err != nil {
+		if errors.Is(err, soy.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return result, nil
+}
+
+// SetTx stores value at key within a transaction (insert or update via upsert).
+func (d *Database[T]) SetTx(ctx context.Context, tx *sqlx.Tx, _ string, value *T) error {
+	s := d.executor.Soy()
+	insert := s.InsertFull().OnConflict(d.keyCol).DoUpdate()
+
+	for _, field := range s.Metadata().Fields {
+		col := field.Tags["db"]
+		if col == "" || col == "-" || col == d.keyCol {
+			continue
+		}
+		insert = insert.Set(col, col)
+	}
+
+	_, err := insert.Build().ExecTx(ctx, tx, value)
+	return err
+}
+
+// DeleteTx removes the record at key within a transaction.
+func (d *Database[T]) DeleteTx(ctx context.Context, tx *sqlx.Tx, key string) error {
+	affected, err := d.executor.Soy().Remove().
+		Where(d.keyCol, "=", "key").
+		ExecTx(ctx, tx, map[string]any{"key": key})
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// ExistsTx checks whether a record exists at key within a transaction.
+func (d *Database[T]) ExistsTx(ctx context.Context, tx *sqlx.Tx, key string) (bool, error) {
+	results, err := d.executor.Soy().Query().
+		Where(d.keyCol, "=", "key").
+		Limit(1).
+		ExecTx(ctx, tx, map[string]any{"key": key})
+	if err != nil {
+		return false, err
+	}
+	return len(results) > 0, nil
+}
+
+// QueryTx executes a query statement within a transaction and returns multiple records.
+func (d *Database[T]) QueryTx(ctx context.Context, tx *sqlx.Tx, stmt edamame.QueryStatement, params map[string]any) ([]*T, error) {
+	return d.executor.ExecQueryTx(ctx, tx, stmt, params)
+}
+
+// SelectTx executes a select statement within a transaction and returns a single record.
+func (d *Database[T]) SelectTx(ctx context.Context, tx *sqlx.Tx, stmt edamame.SelectStatement, params map[string]any) (*T, error) {
+	return d.executor.ExecSelectTx(ctx, tx, stmt, params)
+}
+
+// UpdateTx executes an update statement within a transaction.
+func (d *Database[T]) UpdateTx(ctx context.Context, tx *sqlx.Tx, stmt edamame.UpdateStatement, params map[string]any) (*T, error) {
+	return d.executor.ExecUpdateTx(ctx, tx, stmt, params)
+}
+
+// AggregateTx executes an aggregate statement within a transaction.
+func (d *Database[T]) AggregateTx(ctx context.Context, tx *sqlx.Tx, stmt edamame.AggregateStatement, params map[string]any) (float64, error) {
+	return d.executor.ExecAggregateTx(ctx, tx, stmt, params)
 }
 
 // Atomic returns an atom-based view of this database.

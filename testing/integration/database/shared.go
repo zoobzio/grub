@@ -638,3 +638,327 @@ func testQueryPagination(t *testing.T, tc *TestContext) {
 		t.Errorf("expected first user on page 2 Carol, got %s", page2[0].Name)
 	}
 }
+
+// RunTransactionTests runs the transaction test suite.
+func RunTransactionTests(t *testing.T, tc *TestContext) {
+	t.Run("GetTx", func(t *testing.T) { testGetTx(t, tc) })
+	t.Run("SetTx", func(t *testing.T) { testSetTx(t, tc) })
+	t.Run("DeleteTx", func(t *testing.T) { testDeleteTx(t, tc) })
+	t.Run("TransactionCommit", func(t *testing.T) { testTransactionCommit(t, tc) })
+	t.Run("TransactionRollback", func(t *testing.T) { testTransactionRollback(t, tc) })
+	t.Run("QueryTx", func(t *testing.T) { testQueryTx(t, tc) })
+	t.Run("UpdateTx", func(t *testing.T) { testUpdateTx(t, tc) })
+	t.Run("AggregateTx", func(t *testing.T) { testAggregateTx(t, tc) })
+}
+
+// --- Transaction Tests ---
+
+func testGetTx(t *testing.T, tc *TestContext) {
+	tc.Reset(t)
+	ctx := context.Background()
+
+	_, err := tc.DB.Exec(`INSERT INTO test_users (email, name, age) VALUES ('tx@example.com', 'Tx User', 30)`)
+	if err != nil {
+		t.Fatalf("failed to insert test record: %v", err)
+	}
+
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	if err != nil {
+		t.Fatalf("failed to create database: %v", err)
+	}
+
+	tx, err := tc.DB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	user, err := db.GetTx(ctx, tx, "1")
+	if err != nil {
+		t.Fatalf("GetTx failed: %v", err)
+	}
+
+	if user.Email != "tx@example.com" {
+		t.Errorf("expected email 'tx@example.com', got %q", user.Email)
+	}
+}
+
+func testSetTx(t *testing.T, tc *TestContext) {
+	tc.Reset(t)
+	ctx := context.Background()
+
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	if err != nil {
+		t.Fatalf("failed to create database: %v", err)
+	}
+
+	tx, err := tc.DB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+
+	user := &TestUser{
+		ID:    1,
+		Email: "settx@example.com",
+		Name:  "SetTx User",
+		Age:   intPtr(25),
+	}
+
+	err = db.SetTx(ctx, tx, "1", user)
+	if err != nil {
+		tx.Rollback()
+		t.Fatalf("SetTx failed: %v", err)
+	}
+
+	// Verify visible within transaction
+	got, err := db.GetTx(ctx, tx, "1")
+	if err != nil {
+		tx.Rollback()
+		t.Fatalf("GetTx after SetTx failed: %v", err)
+	}
+
+	if got.Email != "settx@example.com" {
+		t.Errorf("expected email 'settx@example.com', got %q", got.Email)
+	}
+
+	tx.Commit()
+}
+
+func testDeleteTx(t *testing.T, tc *TestContext) {
+	tc.Reset(t)
+	ctx := context.Background()
+
+	_, err := tc.DB.Exec(`INSERT INTO test_users (email, name, age) VALUES ('delete@example.com', 'Delete User', 40)`)
+	if err != nil {
+		t.Fatalf("failed to insert test record: %v", err)
+	}
+
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	if err != nil {
+		t.Fatalf("failed to create database: %v", err)
+	}
+
+	tx, err := tc.DB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+
+	err = db.DeleteTx(ctx, tx, "1")
+	if err != nil {
+		tx.Rollback()
+		t.Fatalf("DeleteTx failed: %v", err)
+	}
+
+	// Verify deleted within transaction
+	_, err = db.GetTx(ctx, tx, "1")
+	if !errors.Is(err, grub.ErrNotFound) {
+		tx.Rollback()
+		t.Errorf("expected ErrNotFound after DeleteTx, got: %v", err)
+	}
+
+	tx.Commit()
+}
+
+func testTransactionCommit(t *testing.T, tc *TestContext) {
+	tc.Reset(t)
+	ctx := context.Background()
+
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	if err != nil {
+		t.Fatalf("failed to create database: %v", err)
+	}
+
+	tx, err := tc.DB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+
+	user := &TestUser{
+		ID:    1,
+		Email: "commit@example.com",
+		Name:  "Commit User",
+		Age:   intPtr(35),
+	}
+
+	err = db.SetTx(ctx, tx, "1", user)
+	if err != nil {
+		tx.Rollback()
+		t.Fatalf("SetTx failed: %v", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		t.Fatalf("Commit failed: %v", err)
+	}
+
+	// Verify visible after commit (using non-Tx method)
+	got, err := db.Get(ctx, "1")
+	if err != nil {
+		t.Fatalf("Get after commit failed: %v", err)
+	}
+
+	if got.Email != "commit@example.com" {
+		t.Errorf("expected email 'commit@example.com', got %q", got.Email)
+	}
+}
+
+func testTransactionRollback(t *testing.T, tc *TestContext) {
+	tc.Reset(t)
+	ctx := context.Background()
+
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	if err != nil {
+		t.Fatalf("failed to create database: %v", err)
+	}
+
+	tx, err := tc.DB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+
+	user := &TestUser{
+		ID:    1,
+		Email: "rollback@example.com",
+		Name:  "Rollback User",
+		Age:   intPtr(45),
+	}
+
+	err = db.SetTx(ctx, tx, "1", user)
+	if err != nil {
+		tx.Rollback()
+		t.Fatalf("SetTx failed: %v", err)
+	}
+
+	// Rollback instead of commit
+	err = tx.Rollback()
+	if err != nil {
+		t.Fatalf("Rollback failed: %v", err)
+	}
+
+	// Verify NOT visible after rollback
+	_, err = db.Get(ctx, "1")
+	if !errors.Is(err, grub.ErrNotFound) {
+		t.Errorf("expected ErrNotFound after rollback, got: %v", err)
+	}
+}
+
+func testQueryTx(t *testing.T, tc *TestContext) {
+	tc.Reset(t)
+	ctx := context.Background()
+
+	_, err := tc.DB.Exec(`
+		INSERT INTO test_users (email, name, age) VALUES
+		('alice@example.com', 'Alice', 25),
+		('bob@example.com', 'Bob', 30)
+	`)
+	if err != nil {
+		t.Fatalf("failed to insert test records: %v", err)
+	}
+
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	if err != nil {
+		t.Fatalf("failed to create database: %v", err)
+	}
+
+	tx, err := tc.DB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	users, err := db.QueryTx(ctx, tx, grub.QueryAll, nil)
+	if err != nil {
+		t.Fatalf("QueryTx failed: %v", err)
+	}
+
+	if len(users) != 2 {
+		t.Errorf("expected 2 users, got %d", len(users))
+	}
+}
+
+func testUpdateTx(t *testing.T, tc *TestContext) {
+	tc.Reset(t)
+	ctx := context.Background()
+
+	_, err := tc.DB.Exec(`INSERT INTO test_users (email, name, age) VALUES ('update@example.com', 'Original', 20)`)
+	if err != nil {
+		t.Fatalf("failed to insert test record: %v", err)
+	}
+
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	if err != nil {
+		t.Fatalf("failed to create database: %v", err)
+	}
+
+	tx, err := tc.DB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+
+	stmt := edamame.NewUpdateStatement("rename", "Update user name", edamame.UpdateSpec{
+		Set: map[string]string{
+			"name": "new_name",
+		},
+		Where: []edamame.ConditionSpec{
+			{Field: "email", Operator: "=", Param: "email"},
+		},
+	})
+
+	updated, err := db.UpdateTx(ctx, tx, stmt, map[string]any{
+		"email":    "update@example.com",
+		"new_name": "TxUpdated",
+	})
+	if err != nil {
+		tx.Rollback()
+		t.Fatalf("UpdateTx failed: %v", err)
+	}
+
+	if updated.Name != "TxUpdated" {
+		t.Errorf("expected name 'TxUpdated', got %q", updated.Name)
+	}
+
+	tx.Commit()
+
+	// Verify persisted
+	got, err := db.Get(ctx, "1")
+	if err != nil {
+		t.Fatalf("Get after commit failed: %v", err)
+	}
+	if got.Name != "TxUpdated" {
+		t.Errorf("expected name 'TxUpdated' after commit, got %q", got.Name)
+	}
+}
+
+func testAggregateTx(t *testing.T, tc *TestContext) {
+	tc.Reset(t)
+	ctx := context.Background()
+
+	_, err := tc.DB.Exec(`
+		INSERT INTO test_users (email, name, age) VALUES
+		('a@example.com', 'A', 10),
+		('b@example.com', 'B', 20)
+	`)
+	if err != nil {
+		t.Fatalf("failed to insert test records: %v", err)
+	}
+
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	if err != nil {
+		t.Fatalf("failed to create database: %v", err)
+	}
+
+	tx, err := tc.DB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	count, err := db.AggregateTx(ctx, tx, grub.CountAll, nil)
+	if err != nil {
+		t.Fatalf("AggregateTx failed: %v", err)
+	}
+
+	if count != 2 {
+		t.Errorf("expected count 2, got %v", count)
+	}
+}

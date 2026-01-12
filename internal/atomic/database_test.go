@@ -416,3 +416,282 @@ func TestDatabase_Exists_QueryError(t *testing.T) {
 		t.Errorf("expected query error, got: %v", err)
 	}
 }
+
+// --- Transaction Method Tests ---
+
+func TestDatabase_GetTx(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
+	if err != nil {
+		t.Fatalf("failed to create executor: %v", err)
+	}
+
+	atomizer, _ := atom.Use[TestUser]()
+	spec := atomizer.Spec()
+	db := New[TestUser](executor, "id", "test_users", spec)
+
+	ctx := context.Background()
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	_, _ = db.GetTx(ctx, tx, "123")
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "SELECT") {
+		t.Errorf("expected SELECT query, got: %s", query.Query)
+	}
+	if !strings.Contains(query.Query, `"test_users"`) {
+		t.Errorf("expected table name in query, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_SetTx(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
+	if err != nil {
+		t.Fatalf("failed to create executor: %v", err)
+	}
+
+	atomizer, _ := atom.Use[TestUser]()
+	spec := atomizer.Spec()
+	db := New[TestUser](executor, "id", "test_users", spec)
+
+	ctx := context.Background()
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	age := int64(30)
+	a := &atom.Atom{
+		Ints:    map[string]int64{"ID": 1},
+		Strings: map[string]string{"Email": "new@example.com", "Name": "New User"},
+		IntPtrs: map[string]*int64{"Age": &age},
+	}
+
+	_ = db.SetTx(ctx, tx, "1", a)
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "INSERT") {
+		t.Errorf("expected INSERT query, got: %s", query.Query)
+	}
+	if !strings.Contains(query.Query, "ON CONFLICT") {
+		t.Errorf("expected ON CONFLICT clause for upsert, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_DeleteTx(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
+	if err != nil {
+		t.Fatalf("failed to create executor: %v", err)
+	}
+
+	atomizer, _ := atom.Use[TestUser]()
+	spec := atomizer.Spec()
+	db := New[TestUser](executor, "id", "test_users", spec)
+
+	ctx := context.Background()
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	_ = db.DeleteTx(ctx, tx, "123")
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "DELETE") {
+		t.Errorf("expected DELETE query, got: %s", query.Query)
+	}
+	if !strings.Contains(query.Query, `"test_users"`) {
+		t.Errorf("expected table name in query, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_ExistsTx(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
+	if err != nil {
+		t.Fatalf("failed to create executor: %v", err)
+	}
+
+	atomizer, _ := atom.Use[TestUser]()
+	spec := atomizer.Spec()
+	db := New[TestUser](executor, "id", "test_users", spec)
+
+	ctx := context.Background()
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	_, _ = db.ExistsTx(ctx, tx, "123")
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "SELECT") {
+		t.Errorf("expected SELECT query, got: %s", query.Query)
+	}
+	if !strings.Contains(query.Query, "LIMIT") {
+		t.Errorf("expected LIMIT clause, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_QueryTx(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
+	if err != nil {
+		t.Fatalf("failed to create executor: %v", err)
+	}
+
+	atomizer, _ := atom.Use[TestUser]()
+	spec := atomizer.Spec()
+	db := New[TestUser](executor, "id", "test_users", spec)
+
+	ctx := context.Background()
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	stmt := edamame.NewQueryStatement("query", "Query all", edamame.QuerySpec{})
+	_, _ = db.QueryTx(ctx, tx, stmt, nil)
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "SELECT") {
+		t.Errorf("expected SELECT query, got: %s", query.Query)
+	}
+	if !strings.Contains(query.Query, `"test_users"`) {
+		t.Errorf("expected table name in query, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_SelectTx(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
+	if err != nil {
+		t.Fatalf("failed to create executor: %v", err)
+	}
+
+	atomizer, _ := atom.Use[TestUser]()
+	spec := atomizer.Spec()
+	db := New[TestUser](executor, "id", "test_users", spec)
+
+	ctx := context.Background()
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	stmt := edamame.NewSelectStatement("by-email", "Find user by email", edamame.SelectSpec{
+		Where: []edamame.ConditionSpec{
+			{Field: "email", Operator: "=", Param: "email"},
+		},
+	})
+
+	_, _ = db.SelectTx(ctx, tx, stmt, map[string]any{"email": "test@example.com"})
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "SELECT") {
+		t.Errorf("expected SELECT query, got: %s", query.Query)
+	}
+	if !strings.Contains(query.Query, `"email"`) {
+		t.Errorf("expected email column in query, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_GetTx_NotFound(t *testing.T) {
+	mockDB, _ := mockdb.New()
+	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
+	if err != nil {
+		t.Fatalf("failed to create executor: %v", err)
+	}
+
+	atomizer, _ := atom.Use[TestUser]()
+	spec := atomizer.Spec()
+	db := New[TestUser](executor, "id", "test_users", spec)
+
+	ctx := context.Background()
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	_, err = db.GetTx(ctx, tx, "nonexistent")
+	if err == nil {
+		t.Error("expected error for missing key")
+	}
+	if !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("expected shared.ErrNotFound, got: %v", err)
+	}
+}
+
+func TestDatabase_DeleteTx_NotFound(t *testing.T) {
+	mockDB, _, cfg := mockdb.NewWithConfig()
+	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
+	if err != nil {
+		t.Fatalf("failed to create executor: %v", err)
+	}
+
+	atomizer, _ := atom.Use[TestUser]()
+	spec := atomizer.Spec()
+	db := New[TestUser](executor, "id", "test_users", spec)
+
+	ctx := context.Background()
+
+	tx, err := mockDB.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTxx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	cfg.SetRowsAffected(0)
+	defer cfg.Reset()
+
+	err = db.DeleteTx(ctx, tx, "nonexistent")
+	if err == nil {
+		t.Error("expected shared.ErrNotFound for 0 rows affected")
+	}
+	if !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("expected shared.ErrNotFound, got: %v", err)
+	}
+}

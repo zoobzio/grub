@@ -47,3 +47,7 @@ func TestSQLite_CRUD(t *testing.T) {
 func TestSQLite_Query(t *testing.T) {
 	database.RunQueryTests(t, tc)
 }
+
+func TestSQLite_Transaction(t *testing.T) {
+	database.RunTransactionTests(t, tc)
+}

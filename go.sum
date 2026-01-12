@@ -25,8 +25,8 @@ github.com/zoobzio/capitan v1.0.0 h1:hEB8XX/FmtIDHKjjTJrUWXkDiZTYa/Jtd/qWO0yc2Dc
 github.com/zoobzio/capitan v1.0.0/go.mod h1:UNZvqLPX2REzKLVfU4EfL9GRe6zddsj6aSWaqNUGAIw=
 github.com/zoobzio/dbml v1.0.0 h1:okeWcYbJu7tEXDXleZv7BLTLEE3rib324y12rfL8QJs=
 github.com/zoobzio/dbml v1.0.0/go.mod h1:CAX7TEjn+UPdwPrtJGBG23sXPfoNA246tqztDR3iV7Y=
-github.com/zoobzio/edamame v1.0.0 h1:Cwqqstgqn7LJ7uowzf6QeJoFbUOG0scHPas64h8Ti24=
-github.com/zoobzio/edamame v1.0.0/go.mod h1:UVfTcjd//Nfs2lLNWrQqomd0O9f0ic31PftXz3KvyWw=
+github.com/zoobzio/edamame v1.0.1 h1:Mynav/EvOEVjQ36JrKm9I3k7nm9t3VgGC1bpyw2rFMA=
+github.com/zoobzio/edamame v1.0.1/go.mod h1:UVfTcjd//Nfs2lLNWrQqomd0O9f0ic31PftXz3KvyWw=
 github.com/zoobzio/sentinel v1.0.2 h1:hTs5Ke2Vi0VgOkoHSJF9G3BYnxTQjMbvOH+qbbQLaoY=
 github.com/zoobzio/sentinel v1.0.2/go.mod h1:gtsD0AYlTEI8ajpEQ3azb7BDZicdsESOB1dJpQqgDKc=
 github.com/zoobzio/soy v1.0.0 h1:N6jN1jRmS7pAOEC5To2ATgYaXaYXLAIYvtaSzVJVMyM=

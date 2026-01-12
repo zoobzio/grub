@@ -75,3 +75,7 @@ func TestPostgres_CRUD(t *testing.T) {
 func TestPostgres_Query(t *testing.T) {
 	database.RunQueryTests(t, tc)
 }
+
+func TestPostgres_Transaction(t *testing.T) {
+	database.RunTransactionTests(t, tc)
+}

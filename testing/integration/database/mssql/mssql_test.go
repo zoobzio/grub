@@ -85,3 +85,7 @@ func TestMSSQL_CRUD(t *testing.T) {
 func TestMSSQL_Query(t *testing.T) {
 	database.RunQueryTests(t, tc)
 }
+
+func TestMSSQL_Transaction(t *testing.T) {
+	database.RunTransactionTests(t, tc)
+}
