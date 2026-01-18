@@ -11,7 +11,7 @@
 
 Provider-agnostic storage for Go.
 
-Type-safe CRUD across key-value stores, blob storage, and SQL databases with a unified interface.
+Type-safe CRUD across key-value stores, blob storage, SQL databases, and vector similarity search with a unified interface.
 
 ## One Interface, Any Backend
 
@@ -29,13 +29,14 @@ sessions.Set(ctx, "session:xyz", &Session{UserID: "123"}, time.Hour)
 Swap Redis for BadgerDB. Move from S3 to Azure. Switch databases from SQLite to PostgreSQL. Your business logic stays the same.
 
 ```go
-// Key-value, blob, or SQL — same patterns
+// Key-value, blob, SQL, or vector — same patterns
 store := grub.NewStore[Config](provider)           // key-value
 bucket := grub.NewBucket[Document](provider)       // blob storage
 db, _ := grub.NewDatabase[User](conn, "users", "id", renderer)  // SQL
+index := grub.NewIndex[Embedding](provider)        // vector search
 ```
 
-Three storage modes, consistent API, semantic errors across all providers.
+Four storage modes, consistent API, semantic errors across all providers.
 
 ## Install
 
@@ -97,6 +98,7 @@ func main() {
 | Key-Value Store | Sessions, cache, config with optional TTL          | [Providers](docs/3.guides/1.providers.md)      |
 | Blob Storage    | Files and documents with metadata                  | [Lifecycle](docs/3.guides/2.lifecycle.md)      |
 | SQL Database    | Structured records with query capabilities         | [Concepts](docs/2.learn/2.concepts.md)         |
+| Vector Search   | Similarity search with metadata filtering          | [Providers](docs/3.guides/1.providers.md)      |
 | Atomic Views    | Field-level access for encryption pipelines        | [Architecture](docs/2.learn/3.architecture.md) |
 | Semantic Errors | `ErrNotFound`, `ErrDuplicate` across all providers | [API Reference](docs/5.reference/1.api.md)     |
 | Custom Codecs   | JSON default, Gob available, or bring your own     | [Concepts](docs/2.learn/2.concepts.md)         |
@@ -113,7 +115,7 @@ func main() {
 
 Grub enables a pattern: **define storage once, swap implementations freely**.
 
-Your domain code works with typed stores. Infrastructure decisions — Redis vs embedded, S3 vs local filesystem, PostgreSQL vs SQLite — become configuration, not architecture.
+Your domain code works with typed stores. Infrastructure decisions — Redis vs embedded, S3 vs local filesystem, PostgreSQL vs SQLite, Pinecone vs pgvector — become configuration, not architecture.
 
 ```go
 // Domain code doesn't know or care about the backend

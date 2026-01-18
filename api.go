@@ -7,22 +7,29 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/zoobzio/atom"
 	"github.com/zoobzio/edamame"
 	"github.com/zoobzio/grub/internal/shared"
+	"github.com/zoobzio/vecna"
 )
 
 // Semantic errors for storage operations (re-exported from internal/shared).
 var (
-	ErrNotFound        = shared.ErrNotFound
-	ErrDuplicate       = shared.ErrDuplicate
-	ErrConflict        = shared.ErrConflict
-	ErrConstraint      = shared.ErrConstraint
-	ErrInvalidKey      = shared.ErrInvalidKey
-	ErrReadOnly        = shared.ErrReadOnly
-	ErrTableExists     = shared.ErrTableExists
-	ErrTableNotFound   = shared.ErrTableNotFound
-	ErrTTLNotSupported = shared.ErrTTLNotSupported
+	ErrNotFound             = shared.ErrNotFound
+	ErrDuplicate            = shared.ErrDuplicate
+	ErrConflict             = shared.ErrConflict
+	ErrConstraint           = shared.ErrConstraint
+	ErrInvalidKey           = shared.ErrInvalidKey
+	ErrReadOnly             = shared.ErrReadOnly
+	ErrTableExists          = shared.ErrTableExists
+	ErrTableNotFound        = shared.ErrTableNotFound
+	ErrTTLNotSupported      = shared.ErrTTLNotSupported
+	ErrDimensionMismatch    = shared.ErrDimensionMismatch
+	ErrInvalidVector        = shared.ErrInvalidVector
+	ErrIndexNotReady        = shared.ErrIndexNotReady
+	ErrInvalidQuery         = shared.ErrInvalidQuery
+	ErrOperatorNotSupported = shared.ErrOperatorNotSupported
 )
 
 // StoreProvider defines raw key-value storage operations.
@@ -163,4 +170,99 @@ type AtomicBucket interface {
 
 	// Exists checks whether a key exists.
 	Exists(ctx context.Context, key string) (bool, error)
+}
+
+// VectorInfo is re-exported from internal/shared for the public API.
+type VectorInfo = shared.VectorInfo
+
+// VectorRecord is re-exported from internal/shared for the public API.
+type VectorRecord = shared.VectorRecord
+
+// VectorResult is re-exported from internal/shared for the public API.
+type VectorResult = shared.VectorResult
+
+// DistanceMetric is re-exported from internal/shared for the public API.
+type DistanceMetric = shared.DistanceMetric
+
+// Distance metric constants.
+const (
+	DistanceL2           = shared.DistanceL2
+	DistanceCosine       = shared.DistanceCosine
+	DistanceInnerProduct = shared.DistanceInnerProduct
+)
+
+// VectorProvider defines raw vector storage operations.
+// Implementations (pinecone, weaviate, milvus, qdrant, pgvector) satisfy this interface.
+type VectorProvider interface {
+	// Upsert stores or updates a vector with associated metadata.
+	// If the ID exists, the vector and metadata are replaced.
+	Upsert(ctx context.Context, id uuid.UUID, vector []float32, metadata []byte) error
+
+	// UpsertBatch stores or updates multiple vectors.
+	UpsertBatch(ctx context.Context, vectors []VectorRecord) error
+
+	// Get retrieves a vector by ID.
+	// Returns ErrNotFound if the ID does not exist.
+	Get(ctx context.Context, id uuid.UUID) ([]float32, *VectorInfo, error)
+
+	// Delete removes a vector by ID.
+	// Returns ErrNotFound if the ID does not exist.
+	Delete(ctx context.Context, id uuid.UUID) error
+
+	// DeleteBatch removes multiple vectors by ID.
+	// Non-existent IDs are silently ignored.
+	DeleteBatch(ctx context.Context, ids []uuid.UUID) error
+
+	// Search performs similarity search and returns the k nearest neighbors.
+	// filter is optional metadata filtering (nil means no filter).
+	Search(ctx context.Context, vector []float32, k int, filter map[string]any) ([]VectorResult, error)
+
+	// Query performs similarity search with vecna filter support.
+	// Returns ErrInvalidQuery if the filter contains validation errors.
+	// Returns ErrOperatorNotSupported if the provider doesn't support an operator.
+	Query(ctx context.Context, vector []float32, k int, filter *vecna.Filter) ([]VectorResult, error)
+
+	// List returns vector IDs.
+	// Limit of 0 means no limit.
+	List(ctx context.Context, limit int) ([]uuid.UUID, error)
+
+	// Exists checks whether a vector ID exists.
+	Exists(ctx context.Context, id uuid.UUID) (bool, error)
+}
+
+// AtomicVector holds vector data with an atomized metadata payload.
+// Used by AtomicIndex for type-agnostic access to vector data.
+type AtomicVector struct {
+	ID       uuid.UUID
+	Vector   []float32
+	Score    float32
+	Metadata *atom.Atom
+}
+
+// AtomicIndex defines atom-based vector storage operations.
+// atomic.Index[T] satisfies this interface, enabling type-agnostic access
+// for framework internals (field-level encryption, pipelines, etc.).
+type AtomicIndex interface {
+	// Spec returns the atom spec describing the metadata type's structure.
+	Spec() atom.Spec
+
+	// Get retrieves the vector at ID with atomized metadata.
+	// Returns ErrNotFound if the ID does not exist.
+	Get(ctx context.Context, id uuid.UUID) (*AtomicVector, error)
+
+	// Upsert stores a vector with atomized metadata.
+	Upsert(ctx context.Context, id uuid.UUID, vector []float32, metadata *atom.Atom) error
+
+	// Delete removes the vector at ID.
+	// Returns ErrNotFound if the ID does not exist.
+	Delete(ctx context.Context, id uuid.UUID) error
+
+	// Exists checks whether an ID exists.
+	Exists(ctx context.Context, id uuid.UUID) (bool, error)
+
+	// Search performs similarity search returning atomized results.
+	Search(ctx context.Context, vector []float32, k int, filter *atom.Atom) ([]AtomicVector, error)
+
+	// Query performs similarity search with vecna filter support.
+	Query(ctx context.Context, vector []float32, k int, filter *vecna.Filter) ([]AtomicVector, error)
 }

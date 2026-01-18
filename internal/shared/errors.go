@@ -31,4 +31,19 @@ var (
 
 	// ErrTTLNotSupported indicates the provider does not support TTL.
 	ErrTTLNotSupported = errors.New("grub: TTL not supported by provider")
+
+	// ErrDimensionMismatch indicates the vector dimension does not match the index.
+	ErrDimensionMismatch = errors.New("grub: vector dimension mismatch")
+
+	// ErrInvalidVector indicates the provided vector is malformed or empty.
+	ErrInvalidVector = errors.New("grub: invalid vector")
+
+	// ErrIndexNotReady indicates the vector index is not ready for operations.
+	ErrIndexNotReady = errors.New("grub: index not ready")
+
+	// ErrInvalidQuery indicates the query filter contains validation errors.
+	ErrInvalidQuery = errors.New("grub: invalid query filter")
+
+	// ErrOperatorNotSupported indicates the filter operator is not supported by the provider.
+	ErrOperatorNotSupported = errors.New("grub: operator not supported by provider")
 )
