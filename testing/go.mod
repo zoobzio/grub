@@ -11,6 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.95.0
 	github.com/dgraph-io/badger/v4 v4.9.0
 	github.com/go-sql-driver/mysql v1.9.3
+	github.com/google/uuid v1.6.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/lib/pq v1.10.9
 	github.com/microsoft/go-mssqldb v1.9.0
@@ -130,7 +131,6 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.7 // indirect
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
@@ -212,8 +212,6 @@ require (
 )
 
 replace (
-	github.com/zoobzio/astql => ../../astql
-	github.com/zoobzio/dbml => ../../dbml
 	github.com/zoobzio/grub v0.0.0 => ../
 	github.com/zoobzio/grub/azure v0.0.0 => ../azure
 	github.com/zoobzio/grub/badger v0.0.0 => ../badger
