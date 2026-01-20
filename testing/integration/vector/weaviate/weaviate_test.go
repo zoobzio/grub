@@ -143,3 +143,7 @@ func TestWeaviate_Query(t *testing.T) {
 		Contains: true,
 	})
 }
+
+func TestWeaviate_Filter(t *testing.T) {
+	vector.RunFilterTests(t, tc, true)
+}

@@ -145,6 +145,31 @@ func (i *Index[T]) Query(ctx context.Context, vector []float32, k int, filter *v
 	return vectors, nil
 }
 
+// Filter returns vectors matching the metadata filter without similarity search.
+// Result ordering is provider-dependent and not guaranteed.
+// Limit of 0 returns all matching vectors.
+// Returns ErrFilterNotSupported if the provider cannot perform metadata-only filtering.
+func (i *Index[T]) Filter(ctx context.Context, filter *vecna.Filter, limit int) ([]*Vector[T], error) {
+	results, err := i.provider.Filter(ctx, filter, limit)
+	if err != nil {
+		return nil, err
+	}
+	vectors := make([]*Vector[T], len(results))
+	for idx, r := range results {
+		var metadata T
+		if err := i.decodeMetadata(r.Metadata, &metadata); err != nil {
+			return nil, err
+		}
+		vectors[idx] = &Vector[T]{
+			ID:       r.ID,
+			Vector:   r.Vector,
+			Score:    r.Score,
+			Metadata: metadata,
+		}
+	}
+	return vectors, nil
+}
+
 // List returns vector IDs.
 // Limit of 0 means no limit.
 func (i *Index[T]) List(ctx context.Context, limit int) ([]uuid.UUID, error) {

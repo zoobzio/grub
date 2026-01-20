@@ -30,6 +30,7 @@ var (
 	ErrIndexNotReady        = shared.ErrIndexNotReady
 	ErrInvalidQuery         = shared.ErrInvalidQuery
 	ErrOperatorNotSupported = shared.ErrOperatorNotSupported
+	ErrFilterNotSupported   = shared.ErrFilterNotSupported
 )
 
 // StoreProvider defines raw key-value storage operations.
@@ -222,6 +223,12 @@ type VectorProvider interface {
 	// Returns ErrOperatorNotSupported if the provider doesn't support an operator.
 	Query(ctx context.Context, vector []float32, k int, filter *vecna.Filter) ([]VectorResult, error)
 
+	// Filter returns vectors matching the metadata filter without similarity search.
+	// Result ordering is provider-dependent and not guaranteed by the interface.
+	// Limit of 0 returns all matching vectors.
+	// Returns ErrFilterNotSupported if the provider cannot perform metadata-only filtering.
+	Filter(ctx context.Context, filter *vecna.Filter, limit int) ([]VectorResult, error)
+
 	// List returns vector IDs.
 	// Limit of 0 means no limit.
 	List(ctx context.Context, limit int) ([]uuid.UUID, error)
@@ -265,4 +272,7 @@ type AtomicIndex interface {
 
 	// Query performs similarity search with vecna filter support.
 	Query(ctx context.Context, vector []float32, k int, filter *vecna.Filter) ([]AtomicVector, error)
+
+	// Filter returns vectors matching the metadata filter without similarity search.
+	Filter(ctx context.Context, filter *vecna.Filter, limit int) ([]AtomicVector, error)
 }

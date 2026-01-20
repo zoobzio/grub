@@ -46,4 +46,7 @@ var (
 
 	// ErrOperatorNotSupported indicates the filter operator is not supported by the provider.
 	ErrOperatorNotSupported = errors.New("grub: operator not supported by provider")
+
+	// ErrFilterNotSupported indicates the provider does not support metadata-only filtering.
+	ErrFilterNotSupported = errors.New("grub: filter not supported by provider")
 )

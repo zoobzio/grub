@@ -13,6 +13,10 @@ import (
 	"github.com/zoobzio/vecna"
 )
 
+// maxOffsetPlusLimit is the Milvus constraint: offset + limit must be < 16384.
+// See: https://milvus.io/docs/limitations.md
+const maxOffsetPlusLimit = 16384
+
 // Config holds configuration for the Milvus provider.
 type Config struct {
 	// Collection is the name of the Milvus collection.
@@ -312,35 +316,198 @@ func (p *Provider) Query(ctx context.Context, vector []float32, k int, filter *v
 	return vectorResults, nil
 }
 
-// List returns vector IDs.
-func (p *Provider) List(ctx context.Context, limit int) ([]uuid.UUID, error) {
-	var opts []client.SearchQueryOptionFunc
-	if limit > 0 {
-		opts = append(opts, client.WithLimit(int64(limit)))
-	}
-
-	results, err := p.client.Query(ctx, p.config.Collection, nil, "", []string{p.config.IDField}, opts...)
+// Filter returns vectors matching the metadata filter without similarity search.
+// Uses Query API with expression. Paginates when limit=0.
+// Note: Due to Milvus SDK limitations (offset+limit < 16384), this method cannot
+// return more than ~16000 results. Returns an error if the limit would be exceeded.
+func (p *Provider) Filter(ctx context.Context, filter *vecna.Filter, limit int) ([]grub.VectorResult, error) {
+	expr, err := translateFilter(filter, p.config.MetadataField)
 	if err != nil {
 		return nil, err
 	}
 
-	var ids []uuid.UUID
+	const batchSize = 1000
+	var allResults []grub.VectorResult
+	offset := int64(0)
+
+	for {
+		fetchLimit := int64(batchSize)
+		if limit > 0 {
+			remaining := int64(limit) - int64(len(allResults))
+			if remaining <= 0 {
+				break
+			}
+			if remaining < fetchLimit {
+				fetchLimit = remaining
+			}
+		}
+
+		// Milvus constraint: offset + limit must be < 16384
+		if offset+fetchLimit >= maxOffsetPlusLimit {
+			return nil, fmt.Errorf("milvus: pagination limit exceeded (offset=%d + limit=%d >= %d)", offset, fetchLimit, maxOffsetPlusLimit)
+		}
+
+		opts := []client.SearchQueryOptionFunc{
+			client.WithLimit(fetchLimit),
+			client.WithOffset(offset),
+		}
+
+		results, err := p.client.Query(
+			ctx,
+			p.config.Collection,
+			nil,
+			expr,
+			[]string{p.config.IDField, p.config.VectorField, p.config.MetadataField},
+			opts...,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		batch, err := p.parseQueryResults(results)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(batch) == 0 {
+			break
+		}
+
+		allResults = append(allResults, batch...)
+		offset += int64(len(batch))
+
+		// If we got fewer than requested, we've reached the end.
+		if int64(len(batch)) < fetchLimit {
+			break
+		}
+
+		// If caller specified a limit and we've reached it, stop.
+		if limit > 0 && len(allResults) >= limit {
+			break
+		}
+	}
+
+	return allResults, nil
+}
+
+// parseQueryResults extracts VectorResults from Milvus query columns.
+func (p *Provider) parseQueryResults(results []entity.Column) ([]grub.VectorResult, error) {
+	var ids []string
+	var vectors [][]float32
+	var metadatas [][]byte
+
 	for _, col := range results {
-		if col.Name() == p.config.IDField {
+		switch col.Name() {
+		case p.config.IDField:
 			if vc, ok := col.(*entity.ColumnVarChar); ok {
 				for i := 0; i < vc.Len(); i++ {
 					idStr, _ := vc.ValueByIdx(i)
-					id, err := uuid.Parse(idStr)
-					if err != nil {
-						return nil, err
-					}
-					ids = append(ids, id)
+					ids = append(ids, idStr)
 				}
+			}
+		case p.config.VectorField:
+			if vecCol, ok := col.(*entity.ColumnFloatVector); ok {
+				vectors = vecCol.Data()
+			}
+		case p.config.MetadataField:
+			if metaCol, ok := col.(*entity.ColumnJSONBytes); ok {
+				metadatas = metaCol.Data()
 			}
 		}
 	}
 
-	return ids, nil
+	vectorResults := make([]grub.VectorResult, len(ids))
+	for i := range ids {
+		id, err := uuid.Parse(ids[i])
+		if err != nil {
+			return nil, err
+		}
+		var vec []float32
+		if i < len(vectors) {
+			vec = vectors[i]
+		}
+		var metadata []byte
+		if i < len(metadatas) {
+			metadata = metadatas[i]
+		}
+		vectorResults[i] = grub.VectorResult{
+			ID:       id,
+			Vector:   vec,
+			Metadata: metadata,
+		}
+	}
+
+	return vectorResults, nil
+}
+
+// List returns vector IDs. Paginates when limit=0.
+// Note: Due to Milvus SDK limitations (offset+limit < 16384), this method cannot
+// return more than ~16000 IDs. Returns an error if the limit would be exceeded.
+func (p *Provider) List(ctx context.Context, limit int) ([]uuid.UUID, error) {
+	const batchSize = 1000
+	var allIDs []uuid.UUID
+	offset := int64(0)
+
+	for {
+		fetchLimit := int64(batchSize)
+		if limit > 0 {
+			remaining := int64(limit) - int64(len(allIDs))
+			if remaining <= 0 {
+				break
+			}
+			if remaining < fetchLimit {
+				fetchLimit = remaining
+			}
+		}
+
+		// Milvus constraint: offset + limit must be < 16384
+		if offset+fetchLimit >= maxOffsetPlusLimit {
+			return nil, fmt.Errorf("milvus: pagination limit exceeded (offset=%d + limit=%d >= %d)", offset, fetchLimit, maxOffsetPlusLimit)
+		}
+
+		opts := []client.SearchQueryOptionFunc{
+			client.WithLimit(fetchLimit),
+			client.WithOffset(offset),
+		}
+
+		results, err := p.client.Query(ctx, p.config.Collection, nil, "", []string{p.config.IDField}, opts...)
+		if err != nil {
+			return nil, err
+		}
+
+		var batchIDs []uuid.UUID
+		for _, col := range results {
+			if col.Name() == p.config.IDField {
+				if vc, ok := col.(*entity.ColumnVarChar); ok {
+					for i := 0; i < vc.Len(); i++ {
+						idStr, _ := vc.ValueByIdx(i)
+						id, err := uuid.Parse(idStr)
+						if err != nil {
+							return nil, err
+						}
+						batchIDs = append(batchIDs, id)
+					}
+				}
+			}
+		}
+
+		if len(batchIDs) == 0 {
+			break
+		}
+
+		allIDs = append(allIDs, batchIDs...)
+		offset += int64(len(batchIDs))
+
+		if int64(len(batchIDs)) < fetchLimit {
+			break
+		}
+
+		if limit > 0 && len(allIDs) >= limit {
+			break
+		}
+	}
+
+	return allIDs, nil
 }
 
 // Exists checks whether a vector ID exists.

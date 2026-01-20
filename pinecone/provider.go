@@ -211,6 +211,11 @@ func (p *Provider) Query(ctx context.Context, vector []float32, k int, filter *v
 	return results, nil
 }
 
+// Filter returns ErrFilterNotSupported as Pinecone does not support metadata-only filtering.
+func (p *Provider) Filter(_ context.Context, _ *vecna.Filter, _ int) ([]grub.VectorResult, error) {
+	return nil, grub.ErrFilterNotSupported
+}
+
 // List returns vector IDs.
 func (p *Provider) List(ctx context.Context, limit int) ([]uuid.UUID, error) {
 	req := &pinecone.ListVectorsRequest{}

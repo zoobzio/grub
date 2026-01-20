@@ -152,3 +152,7 @@ func TestMilvus_Query(t *testing.T) {
 		Contains: true,
 	})
 }
+
+func TestMilvus_Filter(t *testing.T) {
+	vector.RunFilterTests(t, tc, true)
+}

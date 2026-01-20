@@ -250,6 +250,78 @@ func (p *Provider) Query(ctx context.Context, vector []float32, k int, filter *v
 	return results, nil
 }
 
+// Filter returns vectors matching the metadata filter without similarity search.
+// Uses Scroll API with filter, returning results in storage order.
+func (p *Provider) Filter(ctx context.Context, filter *vecna.Filter, limit int) ([]grub.VectorResult, error) {
+	var pageLimit uint32 = 100
+	if limit > 0 && limit < 100 {
+		pageLimit = uint32(limit)
+	}
+
+	var qdrantFilter *qdrant.Filter
+	if filter != nil {
+		translated, err := translateFilter(filter)
+		if err != nil {
+			return nil, err
+		}
+		qdrantFilter = translated
+	}
+
+	results := make([]grub.VectorResult, 0)
+	var offset *qdrant.PointId
+
+	for {
+		req := &qdrant.ScrollPoints{
+			CollectionName: p.config.Collection,
+			Limit:          qdrant.PtrOf(pageLimit),
+			WithVectors:    qdrant.NewWithVectors(true),
+			WithPayload:    qdrant.NewWithPayload(true),
+			Offset:         offset,
+			Filter:         qdrantFilter,
+		}
+
+		resp, err := p.client.Scroll(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(resp) == 0 {
+			break
+		}
+
+		for _, point := range resp {
+			id, err := uuid.Parse(point.Id.GetUuid())
+			if err != nil {
+				return nil, err
+			}
+			metadata, err := payloadToBytes(point.Payload)
+			if err != nil {
+				return nil, err
+			}
+			var vec []float32
+			if point.Vectors != nil {
+				vec = point.Vectors.GetVector().Data
+			}
+			results = append(results, grub.VectorResult{
+				ID:       id,
+				Vector:   vec,
+				Metadata: metadata,
+			})
+			if limit > 0 && len(results) >= limit {
+				return results, nil
+			}
+			offset = point.Id
+		}
+
+		// If we got fewer records than requested, we've reached the end.
+		if len(resp) < int(pageLimit) {
+			break
+		}
+	}
+
+	return results, nil
+}
+
 // List returns vector IDs.
 func (p *Provider) List(ctx context.Context, limit int) ([]uuid.UUID, error) {
 	var pageLimit uint32 = 100

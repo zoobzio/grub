@@ -340,6 +340,77 @@ func (p *Provider) executeSearch(ctx context.Context, query string, args []any) 
 	return results, rows.Err()
 }
 
+// Filter returns vectors matching the metadata filter without similarity search.
+// Results are ordered by ID descending.
+func (p *Provider) Filter(ctx context.Context, filter *vecna.Filter, limit int) ([]grub.VectorResult, error) {
+	query := fmt.Sprintf(
+		`SELECT %q, %q::text, %q::text FROM %q`,
+		p.config.IDColumn,
+		p.config.VectorColumn,
+		p.config.MetadataColumn,
+		p.config.Table,
+	)
+
+	var args []any
+	paramIdx := 1
+
+	// Apply vecna filter if provided.
+	if filter != nil {
+		whereClause, filterArgs, nextIdx, err := translateFilter(filter, p.config.MetadataColumn, paramIdx)
+		if err != nil {
+			return nil, err
+		}
+		if whereClause != "" {
+			query += " WHERE " + whereClause
+			args = append(args, filterArgs...)
+			paramIdx = nextIdx
+		}
+	}
+
+	query += fmt.Sprintf(` ORDER BY %q DESC`, p.config.IDColumn)
+
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", limit)
+	}
+
+	rows, err := p.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []grub.VectorResult
+	for rows.Next() {
+		var id, vectorStr string
+		var metadataStr sql.NullString
+		if err := rows.Scan(&id, &vectorStr, &metadataStr); err != nil {
+			return nil, err
+		}
+
+		vec, err := parseVector(vectorStr)
+		if err != nil {
+			return nil, fmt.Errorf("parse vector: %w", err)
+		}
+
+		var metadata []byte
+		if metadataStr.Valid && metadataStr.String != "" {
+			metadata = []byte(metadataStr.String)
+		}
+
+		parsedID, err := uuid.Parse(id)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, grub.VectorResult{
+			ID:       parsedID,
+			Vector:   vec,
+			Metadata: metadata,
+		})
+	}
+
+	return results, rows.Err()
+}
+
 // List returns vector IDs.
 func (p *Provider) List(ctx context.Context, limit int) ([]uuid.UUID, error) {
 	query := fmt.Sprintf(
