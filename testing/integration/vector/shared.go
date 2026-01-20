@@ -68,6 +68,20 @@ func RunAtomicTests(t *testing.T, tc *TestContext) {
 	t.Run("AtomicGetUpsert", func(t *testing.T) { testAtomicGetUpsert(t, tc) })
 }
 
+// RunFilterTests runs the Filter API test suite.
+// Set supportsFilter to false for providers that return ErrFilterNotSupported (e.g., Pinecone).
+func RunFilterTests(t *testing.T, tc *TestContext, supportsFilter bool) {
+	if !supportsFilter {
+		t.Run("FilterNotSupported", func(t *testing.T) { testFilterNotSupported(t, tc) })
+		return
+	}
+
+	t.Run("FilterNilFilter", func(t *testing.T) { testFilterNilFilter(t, tc) })
+	t.Run("FilterWithCondition", func(t *testing.T) { testFilterWithCondition(t, tc) })
+	t.Run("FilterWithLimit", func(t *testing.T) { testFilterWithLimit(t, tc) })
+	t.Run("FilterNoMatches", func(t *testing.T) { testFilterNoMatches(t, tc) })
+}
+
 // RunQueryTests runs the Query API test suite with vecna filters.
 // Note: Some tests are provider-specific. Pinecone doesn't support range operators.
 func RunQueryTests(t *testing.T, tc *TestContext, supportedOps QueryOperators) {
@@ -1030,5 +1044,127 @@ func testQueryContains(t *testing.T, tc *TestContext) {
 	}
 	if !foundAlpha && len(results) > 0 {
 		t.Error("expected to find vectors with 'alpha' in Tags")
+	}
+}
+
+// --- Filter Tests ---
+
+func testFilterNotSupported(t *testing.T, tc *TestContext) {
+	ctx := context.Background()
+	index := grub.NewIndex[TestMetadata](tc.Provider)
+
+	_, err := index.Filter(ctx, nil, 10)
+	if !errors.Is(err, grub.ErrFilterNotSupported) {
+		t.Errorf("expected ErrFilterNotSupported, got %v", err)
+	}
+}
+
+func testFilterNilFilter(t *testing.T, tc *TestContext) {
+	ctx := context.Background()
+	index := grub.NewIndex[TestMetadata](tc.Provider)
+
+	// Insert test vectors.
+	uniqueCategory := testID().String()
+	for i := 0; i < 3; i++ {
+		id := testID()
+		err := index.Upsert(ctx, id, []float32{float32(i) * 0.1, 0.5, 0.5}, &TestMetadata{Category: uniqueCategory})
+		if err != nil {
+			t.Fatalf("Upsert failed: %v", err)
+		}
+	}
+
+	// Filter with nil filter should return all vectors.
+	results, err := index.Filter(ctx, nil, 0)
+	if err != nil {
+		t.Fatalf("Filter failed: %v", err)
+	}
+
+	if len(results) < 3 {
+		t.Errorf("expected at least 3 results with nil filter, got %d", len(results))
+	}
+}
+
+func testFilterWithCondition(t *testing.T, tc *TestContext) {
+	ctx := context.Background()
+	index := grub.NewIndex[TestMetadata](tc.Provider)
+	b := mustQueryBuilder(t)
+
+	// Insert test vectors with different categories.
+	uniqueCategory := testID().String()
+	otherCategory := testID().String()
+
+	for i := 0; i < 3; i++ {
+		id := testID()
+		err := index.Upsert(ctx, id, []float32{float32(i) * 0.1, 0.5, 0.5}, &TestMetadata{Category: uniqueCategory, Score: float64(i)})
+		if err != nil {
+			t.Fatalf("Upsert failed: %v", err)
+		}
+	}
+	for i := 0; i < 2; i++ {
+		id := testID()
+		err := index.Upsert(ctx, id, []float32{float32(i) * 0.2, 0.4, 0.4}, &TestMetadata{Category: otherCategory, Score: float64(i + 10)})
+		if err != nil {
+			t.Fatalf("Upsert failed: %v", err)
+		}
+	}
+
+	// Filter for uniqueCategory only.
+	filter := b.Where("category").Eq(uniqueCategory)
+	results, err := index.Filter(ctx, filter, 0)
+	if err != nil {
+		t.Fatalf("Filter failed: %v", err)
+	}
+
+	if len(results) < 3 {
+		t.Errorf("expected at least 3 results with category=%s, got %d", uniqueCategory, len(results))
+	}
+
+	for _, r := range results {
+		if r.Metadata.Category != uniqueCategory {
+			t.Errorf("expected Category=%s, got %s", uniqueCategory, r.Metadata.Category)
+		}
+	}
+}
+
+func testFilterWithLimit(t *testing.T, tc *TestContext) {
+	ctx := context.Background()
+	index := grub.NewIndex[TestMetadata](tc.Provider)
+
+	// Insert test vectors.
+	uniqueCategory := testID().String()
+	for i := 0; i < 10; i++ {
+		id := testID()
+		err := index.Upsert(ctx, id, []float32{float32(i) * 0.1, 0.5, 0.5}, &TestMetadata{Category: uniqueCategory})
+		if err != nil {
+			t.Fatalf("Upsert failed: %v", err)
+		}
+	}
+
+	// Filter with limit.
+	results, err := index.Filter(ctx, nil, 3)
+	if err != nil {
+		t.Fatalf("Filter failed: %v", err)
+	}
+
+	if len(results) > 3 {
+		t.Errorf("expected at most 3 results with limit=3, got %d", len(results))
+	}
+}
+
+func testFilterNoMatches(t *testing.T, tc *TestContext) {
+	ctx := context.Background()
+	index := grub.NewIndex[TestMetadata](tc.Provider)
+	b := mustQueryBuilder(t)
+
+	// Filter for a category that doesn't exist.
+	nonExistentCategory := testID().String()
+	filter := b.Where("category").Eq(nonExistentCategory)
+	results, err := index.Filter(ctx, filter, 0)
+	if err != nil {
+		t.Fatalf("Filter failed: %v", err)
+	}
+
+	if len(results) != 0 {
+		t.Errorf("expected 0 results for non-existent category, got %d", len(results))
 	}
 }

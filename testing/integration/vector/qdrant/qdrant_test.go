@@ -117,3 +117,7 @@ func TestQdrant_Query(t *testing.T) {
 		Contains: true,
 	})
 }
+
+func TestQdrant_Filter(t *testing.T) {
+	vector.RunFilterTests(t, tc, true)
+}

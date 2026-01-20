@@ -19,6 +19,7 @@ type VectorProvider interface {
 	DeleteBatch(ctx context.Context, ids []uuid.UUID) error
 	Search(ctx context.Context, vector []float32, k int, filter map[string]any) ([]shared.VectorResult, error)
 	Query(ctx context.Context, vector []float32, k int, filter *vecna.Filter) ([]shared.VectorResult, error)
+	Filter(ctx context.Context, filter *vecna.Filter, limit int) ([]shared.VectorResult, error)
 	List(ctx context.Context, limit int) ([]uuid.UUID, error)
 	Exists(ctx context.Context, id uuid.UUID) (bool, error)
 }
@@ -119,6 +120,28 @@ func (i *Index[T]) Search(ctx context.Context, vector []float32, k int, filter *
 // Query performs similarity search with vecna filter support.
 func (i *Index[T]) Query(ctx context.Context, vector []float32, k int, filter *vecna.Filter) ([]Vector, error) {
 	results, err := i.provider.Query(ctx, vector, k, filter)
+	if err != nil {
+		return nil, err
+	}
+	atomicResults := make([]Vector, len(results))
+	for idx, r := range results {
+		metadata, err := i.metadataToAtom(r.Metadata)
+		if err != nil {
+			return nil, err
+		}
+		atomicResults[idx] = Vector{
+			ID:       r.ID,
+			Vector:   r.Vector,
+			Score:    r.Score,
+			Metadata: metadata,
+		}
+	}
+	return atomicResults, nil
+}
+
+// Filter returns vectors matching the metadata filter without similarity search.
+func (i *Index[T]) Filter(ctx context.Context, filter *vecna.Filter, limit int) ([]Vector, error) {
+	results, err := i.provider.Filter(ctx, filter, limit)
 	if err != nil {
 		return nil, err
 	}

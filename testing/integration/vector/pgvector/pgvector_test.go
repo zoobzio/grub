@@ -119,3 +119,7 @@ func TestPgvector_Query(t *testing.T) {
 		Contains: true,
 	})
 }
+
+func TestPgvector_Filter(t *testing.T) {
+	vector.RunFilterTests(t, tc, true)
+}

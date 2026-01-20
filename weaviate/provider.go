@@ -51,7 +51,8 @@ func New(client *weaviate.Client, config Config) *Provider {
 	}
 }
 
-// buildSearchFields constructs the GraphQL field list for search queries.
+// buildSearchFields constructs the GraphQL field list for vector search queries.
+// Includes distance which is only valid for near* queries.
 func (p *Provider) buildSearchFields() []graphql.Field {
 	fields := make([]graphql.Field, 0, len(p.config.Properties)+1)
 
@@ -65,6 +66,26 @@ func (p *Provider) buildSearchFields() []graphql.Field {
 			{Name: "id"},
 			{Name: "vector"},
 			{Name: "distance"},
+		},
+	})
+
+	return fields
+}
+
+// buildGetFields constructs the GraphQL field list for non-vector queries.
+// Omits distance which is only valid for near* queries.
+func (p *Provider) buildGetFields() []graphql.Field {
+	fields := make([]graphql.Field, 0, len(p.config.Properties)+1)
+
+	for _, prop := range p.config.Properties {
+		fields = append(fields, graphql.Field{Name: prop})
+	}
+
+	fields = append(fields, graphql.Field{
+		Name: "_additional",
+		Fields: []graphql.Field{
+			{Name: "id"},
+			{Name: "vector"},
 		},
 	})
 
@@ -250,6 +271,73 @@ func (p *Provider) Query(ctx context.Context, vector []float32, k int, filter *v
 	}
 
 	return parseSearchResults(resp, p.config.Class)
+}
+
+// Filter returns vectors matching the metadata filter without similarity search.
+// Uses GraphQL Get with Where filter. Paginates when limit=0.
+func (p *Provider) Filter(ctx context.Context, filter *vecna.Filter, limit int) ([]grub.VectorResult, error) {
+	var where *filters.WhereBuilder
+	if filter != nil {
+		var err error
+		where, err = translateFilter(filter)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	const pageSize = 100
+	var allResults []grub.VectorResult
+	offset := 0
+
+	for {
+		fetchLimit := pageSize
+		if limit > 0 {
+			remaining := limit - len(allResults)
+			if remaining <= 0 {
+				break
+			}
+			if remaining < fetchLimit {
+				fetchLimit = remaining
+			}
+		}
+
+		query := p.client.GraphQL().Get().
+			WithClassName(p.config.Class).
+			WithLimit(fetchLimit).
+			WithOffset(offset).
+			WithFields(p.buildGetFields()...)
+
+		if where != nil {
+			query = query.WithWhere(where)
+		}
+
+		resp, err := query.Do(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		batch, err := parseSearchResults(resp, p.config.Class)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(batch) == 0 {
+			break
+		}
+
+		allResults = append(allResults, batch...)
+		offset += len(batch)
+
+		if len(batch) < fetchLimit {
+			break
+		}
+
+		if limit > 0 && len(allResults) >= limit {
+			break
+		}
+	}
+
+	return allResults, nil
 }
 
 // List returns vector IDs.

@@ -2,6 +2,7 @@ package weaviate
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/weaviate/weaviate-go-client/v5/weaviate/filters"
 	"github.com/zoobzio/grub"
@@ -36,6 +37,8 @@ func translateNode(f *vecna.Filter) (*filters.WhereBuilder, error) {
 }
 
 // translateLogical translates AND/OR filters.
+// For OR: if any operand is nil (match-all), return nil (short-circuit match-all).
+// For AND: filter out nil operands (they're no-ops).
 func translateLogical(children []*vecna.Filter, op filters.WhereOperator) (*filters.WhereBuilder, error) {
 	if len(children) == 0 {
 		return nil, nil
@@ -47,7 +50,20 @@ func translateLogical(children []*vecna.Filter, op filters.WhereOperator) (*filt
 		if err != nil {
 			return nil, err
 		}
+		// Handle nil clauses based on operator
+		if clause == nil {
+			if op == filters.Or {
+				// OR with match-all = match-all
+				return nil, nil
+			}
+			// AND with match-all = skip (no-op)
+			continue
+		}
 		clauses = append(clauses, clause)
+	}
+
+	if len(clauses) == 0 {
+		return nil, nil
 	}
 
 	if len(clauses) == 1 {
@@ -59,21 +75,94 @@ func translateLogical(children []*vecna.Filter, op filters.WhereOperator) (*filt
 		WithOperands(clauses), nil
 }
 
-// translateNot translates a NOT filter.
+// translateNot translates a NOT filter by negating at the leaf level.
+// Weaviate doesn't have a NOT operator, so we must negate conditions directly.
 func translateNot(children []*vecna.Filter) (*filters.WhereBuilder, error) {
 	if len(children) != 1 {
 		return nil, fmt.Errorf("%w: NOT requires exactly one child", grub.ErrInvalidQuery)
 	}
 
-	child, err := translateNode(children[0])
-	if err != nil {
-		return nil, err
-	}
+	child := children[0]
+	return negateFilter(child)
+}
 
-	// Weaviate doesn't have a direct NOT operator, so we wrap with a Not operand
-	return filters.Where().
-		WithOperator(filters.Not).
-		WithOperands([]*filters.WhereBuilder{child}), nil
+// negateFilter negates a filter by inverting operators or applying De Morgan's laws.
+func negateFilter(f *vecna.Filter) (*filters.WhereBuilder, error) {
+	switch f.Op() {
+	case vecna.And:
+		// De Morgan: NOT(AND(a,b)) = OR(NOT(a), NOT(b))
+		// If any negated child is nil (match-all), OR short-circuits to match-all.
+		negated := make([]*filters.WhereBuilder, 0, len(f.Children()))
+		for _, child := range f.Children() {
+			n, err := negateFilter(child)
+			if err != nil {
+				return nil, err
+			}
+			if n == nil {
+				// OR with match-all = match-all
+				return nil, nil
+			}
+			negated = append(negated, n)
+		}
+		if len(negated) == 0 {
+			return nil, nil
+		}
+		if len(negated) == 1 {
+			return negated[0], nil
+		}
+		return filters.Where().WithOperator(filters.Or).WithOperands(negated), nil
+
+	case vecna.Or:
+		// De Morgan: NOT(OR(a,b)) = AND(NOT(a), NOT(b))
+		// Nil operands (match-all) are filtered out for AND (they're no-ops).
+		negated := make([]*filters.WhereBuilder, 0, len(f.Children()))
+		for _, child := range f.Children() {
+			n, err := negateFilter(child)
+			if err != nil {
+				return nil, err
+			}
+			if n == nil {
+				// AND with match-all = skip (no-op)
+				continue
+			}
+			negated = append(negated, n)
+		}
+		if len(negated) == 0 {
+			return nil, nil
+		}
+		if len(negated) == 1 {
+			return negated[0], nil
+		}
+		return filters.Where().WithOperator(filters.And).WithOperands(negated), nil
+
+	case vecna.Not:
+		// Double negation: NOT(NOT(x)) = x
+		if len(f.Children()) != 1 {
+			return nil, fmt.Errorf("%w: NOT requires exactly one child", grub.ErrInvalidQuery)
+		}
+		return translateNode(f.Children()[0])
+
+	case vecna.Eq:
+		return applyValue(filters.Where().WithPath([]string{f.Field()}), filters.NotEqual, f.Value())
+	case vecna.Ne:
+		return applyValue(filters.Where().WithPath([]string{f.Field()}), filters.Equal, f.Value())
+	case vecna.Lt:
+		return applyValue(filters.Where().WithPath([]string{f.Field()}), filters.GreaterThanEqual, f.Value())
+	case vecna.Lte:
+		return applyValue(filters.Where().WithPath([]string{f.Field()}), filters.GreaterThan, f.Value())
+	case vecna.Gt:
+		return applyValue(filters.Where().WithPath([]string{f.Field()}), filters.LessThanEqual, f.Value())
+	case vecna.Gte:
+		return applyValue(filters.Where().WithPath([]string{f.Field()}), filters.LessThan, f.Value())
+	case vecna.In:
+		// NOT(IN([a,b,c])) = AND(NotEqual(a), NotEqual(b), NotEqual(c))
+		return translateNin(f.Field(), f.Value())
+	case vecna.Nin:
+		// NOT(NIN) = IN
+		return translateIn(f.Field(), f.Value())
+	default:
+		return nil, fmt.Errorf("%w: cannot negate %s", grub.ErrOperatorNotSupported, f.Op())
+	}
 }
 
 // translateCondition translates a field condition.
@@ -99,19 +188,15 @@ func translateCondition(f *vecna.Filter) (*filters.WhereBuilder, error) {
 	case vecna.In:
 		return translateIn(field, value)
 	case vecna.Nin:
-		// Nin is implemented as NOT(IN)
-		inClause, err := translateIn(field, value)
-		if err != nil {
-			return nil, err
-		}
-		return filters.Where().
-			WithOperator(filters.Not).
-			WithOperands([]*filters.WhereBuilder{inClause}), nil
+		return translateNin(field, value)
 	case vecna.Like:
 		pattern, ok := value.(string)
 		if !ok {
 			return nil, fmt.Errorf("%w: Like requires string pattern", grub.ErrInvalidQuery)
 		}
+		// Convert SQL-style wildcards to Weaviate wildcards: % -> *, _ -> ?
+		pattern = strings.ReplaceAll(pattern, "%", "*")
+		pattern = strings.ReplaceAll(pattern, "_", "?")
 		return clause.WithOperator(filters.Like).WithValueText(pattern), nil
 	case vecna.Contains:
 		return translateContains(field, value)
@@ -193,6 +278,67 @@ func translateIn(field string, value any) (*filters.WhereBuilder, error) {
 	default:
 		return nil, fmt.Errorf("%w: unsupported value type for In", grub.ErrInvalidQuery)
 	}
+}
+
+// translateNin translates a NIN (not in) condition as AND of NotEqual clauses.
+// Enforces homogeneous types like translateIn.
+func translateNin(field string, value any) (*filters.WhereBuilder, error) {
+	slice, ok := value.([]any)
+	if !ok {
+		return nil, fmt.Errorf("%w: Nin requires slice value", grub.ErrInvalidQuery)
+	}
+
+	if len(slice) == 0 {
+		// Empty NIN matches everything - return nil (no filter)
+		return nil, nil
+	}
+
+	// Build AND of NotEqual clauses, enforcing homogeneous types
+	clauses := make([]*filters.WhereBuilder, 0, len(slice))
+
+	// Check first element type and enforce all elements match
+	switch slice[0].(type) {
+	case string:
+		for _, v := range slice {
+			s, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("%w: Nin values must be same type", grub.ErrInvalidQuery)
+			}
+			c := filters.Where().WithPath([]string{field}).WithOperator(filters.NotEqual).WithValueText(s)
+			clauses = append(clauses, c)
+		}
+	case int, int64:
+		for _, v := range slice {
+			var intVal int64
+			switch val := v.(type) {
+			case int:
+				intVal = int64(val)
+			case int64:
+				intVal = val
+			default:
+				return nil, fmt.Errorf("%w: Nin values must be same type", grub.ErrInvalidQuery)
+			}
+			c := filters.Where().WithPath([]string{field}).WithOperator(filters.NotEqual).WithValueInt(intVal)
+			clauses = append(clauses, c)
+		}
+	case float64:
+		for _, v := range slice {
+			f, ok := v.(float64)
+			if !ok {
+				return nil, fmt.Errorf("%w: Nin values must be same type", grub.ErrInvalidQuery)
+			}
+			c := filters.Where().WithPath([]string{field}).WithOperator(filters.NotEqual).WithValueNumber(f)
+			clauses = append(clauses, c)
+		}
+	default:
+		return nil, fmt.Errorf("%w: unsupported value type for Nin", grub.ErrInvalidQuery)
+	}
+
+	if len(clauses) == 1 {
+		return clauses[0], nil
+	}
+
+	return filters.Where().WithOperator(filters.And).WithOperands(clauses), nil
 }
 
 // translateContains translates a Contains condition.

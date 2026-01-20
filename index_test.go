@@ -20,6 +20,7 @@ type mockVectorProvider struct {
 	deleteErr error
 	searchErr error
 	queryErr  error
+	filterErr error
 	listErr   error
 	existsErr error
 }
@@ -189,6 +190,25 @@ func (m *mockVectorProvider) Exists(_ context.Context, id uuid.UUID) (bool, erro
 	}
 	_, ok := m.vectors[id]
 	return ok, nil
+}
+
+func (m *mockVectorProvider) Filter(_ context.Context, _ *vecna.Filter, limit int) ([]VectorResult, error) {
+	if m.filterErr != nil {
+		return nil, m.filterErr
+	}
+	// For testing, just return all vectors (no filter evaluation).
+	results := make([]VectorResult, 0, len(m.vectors))
+	for id, entry := range m.vectors {
+		results = append(results, VectorResult{
+			ID:       id,
+			Vector:   entry.vector,
+			Metadata: entry.metadata,
+		})
+		if limit > 0 && len(results) >= limit {
+			break
+		}
+	}
+	return results, nil
 }
 
 func matchesFilter(metadata, filter map[string]any) bool {
@@ -474,6 +494,65 @@ func TestIndex_Search(t *testing.T) {
 	})
 }
 
+func TestIndex_Query(t *testing.T) {
+	provider := newMockVectorProvider()
+	index := NewIndex[testMetadata](provider)
+	ctx := context.Background()
+
+	// Setup test vectors
+	id1, id2 := uuid.New(), uuid.New()
+	provider.vectors[id1] = vectorEntry{
+		vector:   []float32{1.0, 0.0},
+		metadata: []byte(`{"category":"a","score":10}`),
+	}
+	provider.vectors[id2] = vectorEntry{
+		vector:   []float32{0.0, 1.0},
+		metadata: []byte(`{"category":"b","score":20}`),
+	}
+
+	t.Run("nil filter", func(t *testing.T) {
+		results, err := index.Query(ctx, []float32{1.0, 0.0}, 10, nil)
+		if err != nil {
+			t.Fatalf("Query failed: %v", err)
+		}
+		if len(results) != 2 {
+			t.Errorf("expected 2 results, got %d", len(results))
+		}
+	})
+
+	t.Run("with limit", func(t *testing.T) {
+		results, err := index.Query(ctx, []float32{1.0, 0.0}, 1, nil)
+		if err != nil {
+			t.Fatalf("Query failed: %v", err)
+		}
+		if len(results) != 1 {
+			t.Errorf("expected 1 result, got %d", len(results))
+		}
+	})
+
+	t.Run("metadata decoded", func(t *testing.T) {
+		results, err := index.Query(ctx, []float32{1.0, 0.0}, 10, nil)
+		if err != nil {
+			t.Fatalf("Query failed: %v", err)
+		}
+		for _, r := range results {
+			if r.Metadata.Category == "" {
+				t.Error("expected category to be decoded")
+			}
+		}
+	})
+
+	t.Run("provider error", func(t *testing.T) {
+		provider.queryErr = errors.New("query error")
+		defer func() { provider.queryErr = nil }()
+
+		_, err := index.Query(ctx, []float32{1.0, 0.0}, 1, nil)
+		if err == nil {
+			t.Error("expected provider error")
+		}
+	})
+}
+
 func TestIndex_List(t *testing.T) {
 	provider := newMockVectorProvider()
 	index := NewIndex[testMetadata](provider)
@@ -533,6 +612,133 @@ func TestIndex_Exists(t *testing.T) {
 	})
 }
 
+func TestIndex_Filter(t *testing.T) {
+	provider := newMockVectorProvider()
+	index := NewIndex[testMetadata](provider)
+	ctx := context.Background()
+
+	// Insert test data
+	id1, id2 := uuid.New(), uuid.New()
+	provider.vectors[id1] = vectorEntry{
+		vector:   []float32{1.0, 0.0},
+		metadata: []byte(`{"category":"a","score":10}`),
+	}
+	provider.vectors[id2] = vectorEntry{
+		vector:   []float32{0.0, 1.0},
+		metadata: []byte(`{"category":"b","score":20}`),
+	}
+
+	t.Run("nil filter returns all", func(t *testing.T) {
+		results, err := index.Filter(ctx, nil, 0)
+		if err != nil {
+			t.Fatalf("Filter failed: %v", err)
+		}
+		if len(results) != 2 {
+			t.Errorf("expected 2 results, got %d", len(results))
+		}
+	})
+
+	t.Run("with limit", func(t *testing.T) {
+		results, err := index.Filter(ctx, nil, 1)
+		if err != nil {
+			t.Fatalf("Filter failed: %v", err)
+		}
+		if len(results) != 1 {
+			t.Errorf("expected 1 result, got %d", len(results))
+		}
+	})
+
+	t.Run("metadata decoded", func(t *testing.T) {
+		results, err := index.Filter(ctx, nil, 0)
+		if err != nil {
+			t.Fatalf("Filter failed: %v", err)
+		}
+		for _, r := range results {
+			if r.Metadata.Category == "" {
+				t.Error("expected metadata to be decoded")
+			}
+		}
+	})
+}
+
+func TestIndex_FilterProviderError(t *testing.T) {
+	provider := newMockVectorProvider()
+	index := NewIndex[testMetadata](provider)
+	ctx := context.Background()
+
+	provider.filterErr = errors.New("filter error")
+	defer func() { provider.filterErr = nil }()
+
+	_, err := index.Filter(ctx, nil, 0)
+	if err == nil {
+		t.Error("expected provider error")
+	}
+}
+
+func TestIndex_NilMetadata(t *testing.T) {
+	provider := newMockVectorProvider()
+	index := NewIndex[testMetadata](provider)
+	ctx := context.Background()
+
+	t.Run("Upsert with nil metadata", func(t *testing.T) {
+		id := uuid.New()
+		err := index.Upsert(ctx, id, []float32{1.0}, nil)
+		if err != nil {
+			t.Fatalf("Upsert failed: %v", err)
+		}
+		// Verify it was stored with nil metadata
+		if provider.vectors[id].metadata != nil {
+			t.Error("expected nil metadata to be stored")
+		}
+	})
+
+	t.Run("Get with nil metadata", func(t *testing.T) {
+		id := uuid.New()
+		provider.vectors[id] = vectorEntry{
+			vector:   []float32{1.0},
+			metadata: nil,
+		}
+		result, err := index.Get(ctx, id)
+		if err != nil {
+			t.Fatalf("Get failed: %v", err)
+		}
+		// Zero value metadata should be returned
+		if result.Metadata.Category != "" || result.Metadata.Score != 0 {
+			t.Error("expected zero value metadata")
+		}
+	})
+
+	t.Run("Search with nil metadata in results", func(t *testing.T) {
+		id := uuid.New()
+		provider.vectors[id] = vectorEntry{
+			vector:   []float32{1.0, 0.0},
+			metadata: nil,
+		}
+		results, err := index.Search(ctx, []float32{1.0, 0.0}, 10, nil)
+		if err != nil {
+			t.Fatalf("Search failed: %v", err)
+		}
+		if len(results) == 0 {
+			t.Error("expected results")
+		}
+	})
+
+	t.Run("Query with nil metadata in results", func(t *testing.T) {
+		id := uuid.New()
+		provider.vectors[id] = vectorEntry{
+			vector:   []float32{1.0, 0.0},
+			metadata: nil,
+		}
+		results, err := index.Query(ctx, []float32{1.0, 0.0}, 10, nil)
+		if err != nil {
+			t.Fatalf("Query failed: %v", err)
+		}
+		if len(results) == 0 {
+			t.Error("expected results")
+		}
+	})
+}
+
 func TestIndex_RoundTrip(t *testing.T) {
 	provider := newMockVectorProvider()
 	index := NewIndex[testMetadata](provider)
@@ -559,6 +765,113 @@ func TestIndex_RoundTrip(t *testing.T) {
 	}
 	if len(retrieved.Vector) != len(vector) {
 		t.Errorf("Vector length mismatch: got %d, want %d", len(retrieved.Vector), len(vector))
+	}
+}
+
+func TestIndex_DecodeErrors(t *testing.T) {
+	provider := newMockVectorProvider()
+	index := NewIndex[testMetadata](provider)
+	ctx := context.Background()
+
+	// Store invalid JSON that can't be decoded to testMetadata
+	badID := uuid.New()
+	provider.vectors[badID] = vectorEntry{
+		vector:   []float32{1.0, 2.0},
+		metadata: []byte(`{invalid json`),
+	}
+
+	t.Run("Get decode error", func(t *testing.T) {
+		_, err := index.Get(ctx, badID)
+		if err == nil {
+			t.Error("expected decode error")
+		}
+	})
+
+	t.Run("Search decode error", func(t *testing.T) {
+		_, err := index.Search(ctx, []float32{1.0, 2.0}, 10, nil)
+		if err == nil {
+			t.Error("expected decode error")
+		}
+	})
+
+	t.Run("Query decode error", func(t *testing.T) {
+		_, err := index.Query(ctx, []float32{1.0, 2.0}, 10, nil)
+		if err == nil {
+			t.Error("expected decode error")
+		}
+	})
+
+	t.Run("Filter decode error", func(t *testing.T) {
+		_, err := index.Filter(ctx, nil, 0)
+		if err == nil {
+			t.Error("expected decode error")
+		}
+	})
+}
+
+// errorCodec is a codec that can be configured to fail.
+type errorCodec struct {
+	encodeErr error
+	decodeErr error
+}
+
+func (f errorCodec) Encode(v any) ([]byte, error) {
+	if f.encodeErr != nil {
+		return nil, f.encodeErr
+	}
+	return json.Marshal(v)
+}
+
+func (f errorCodec) Decode(data []byte, v any) error {
+	if f.decodeErr != nil {
+		return f.decodeErr
+	}
+	return json.Unmarshal(data, v)
+}
+
+func TestIndex_EncodeErrors(t *testing.T) {
+	provider := newMockVectorProvider()
+	codec := errorCodec{encodeErr: errors.New("encode failed")}
+	index := NewIndexWithCodec[testMetadata](provider, codec)
+	ctx := context.Background()
+
+	t.Run("Upsert encode error", func(t *testing.T) {
+		err := index.Upsert(ctx, uuid.New(), []float32{1.0}, &testMetadata{})
+		if err == nil {
+			t.Error("expected encode error")
+		}
+	})
+
+	t.Run("UpsertBatch encode error", func(t *testing.T) {
+		vectors := []Vector[testMetadata]{
+			{ID: uuid.New(), Vector: []float32{1.0}, Metadata: testMetadata{}},
+		}
+		err := index.UpsertBatch(ctx, vectors)
+		if err == nil {
+			t.Error("expected encode error")
+		}
+	})
+
+	t.Run("Search encodeFilter error", func(t *testing.T) {
+		filter := &testMetadata{Category: "test"}
+		_, err := index.Search(ctx, []float32{1.0}, 10, filter)
+		if err == nil {
+			t.Error("expected encode error")
+		}
+	})
+}
+
+func TestIndex_EncodeFilterDecodeError(t *testing.T) {
+	provider := newMockVectorProvider()
+	// Codec that encodes fine but fails on decode (for encodeFilter's second step)
+	codec := errorCodec{decodeErr: errors.New("decode failed")}
+	index := NewIndexWithCodec[testMetadata](provider, codec)
+	ctx := context.Background()
+
+	filter := &testMetadata{Category: "test"}
+	_, err := index.Search(ctx, []float32{1.0}, 10, filter)
+	if err == nil {
+		t.Error("expected decode error in encodeFilter")
 	}
 }
 

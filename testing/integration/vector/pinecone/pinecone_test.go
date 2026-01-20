@@ -126,3 +126,8 @@ func TestPinecone_Query(t *testing.T) {
 		Contains: false,
 	})
 }
+
+func TestPinecone_Filter(t *testing.T) {
+	// Pinecone doesn't support metadata-only filtering
+	vector.RunFilterTests(t, tc, false)
+}
