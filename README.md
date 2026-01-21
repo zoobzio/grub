@@ -115,7 +115,7 @@ func main() {
 
 Grub enables a pattern: **define storage once, swap implementations freely**.
 
-Your domain code works with typed stores. Infrastructure decisions — Redis vs embedded, S3 vs local filesystem, PostgreSQL vs SQLite, Pinecone vs pgvector — become configuration, not architecture.
+Your domain code works with typed stores. Infrastructure decisions — Redis vs embedded, S3 vs local filesystem, PostgreSQL vs SQLite, Pinecone vs Qdrant — become configuration, not architecture.
 
 ```go
 // Domain code doesn't know or care about the backend
