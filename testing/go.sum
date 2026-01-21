@@ -708,6 +708,8 @@ github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9dec
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0=
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
+github.com/zoobzio/astql v1.0.5 h1:799pEEaMbT74EFfniDnbBdc6acE+kDw1xIJaPuU2i3k=
+github.com/zoobzio/astql v1.0.5/go.mod h1:I7yNnjuD3KxCoNGyBbz+zDxT/osgHaQ5RsHGdEKEwMw=
 github.com/zoobzio/atom v1.0.0 h1:vFFfheHPMJQztp+/BmTWTIRfixjojqmpD6uM1X6xkuo=
 github.com/zoobzio/atom v1.0.0/go.mod h1:+ciiuq93FK54xwtktR196qPqb2tyt643IUcL94ETk9s=
 github.com/zoobzio/capitan v1.0.0 h1:hEB8XX/FmtIDHKjjTJrUWXkDiZTYa/Jtd/qWO0yc2Dc=
@@ -718,8 +720,8 @@ github.com/zoobzio/edamame v1.0.1 h1:Mynav/EvOEVjQ36JrKm9I3k7nm9t3VgGC1bpyw2rFMA
 github.com/zoobzio/edamame v1.0.1/go.mod h1:UVfTcjd//Nfs2lLNWrQqomd0O9f0ic31PftXz3KvyWw=
 github.com/zoobzio/sentinel v1.0.2 h1:hTs5Ke2Vi0VgOkoHSJF9G3BYnxTQjMbvOH+qbbQLaoY=
 github.com/zoobzio/sentinel v1.0.2/go.mod h1:gtsD0AYlTEI8ajpEQ3azb7BDZicdsESOB1dJpQqgDKc=
-github.com/zoobzio/soy v1.0.0 h1:N6jN1jRmS7pAOEC5To2ATgYaXaYXLAIYvtaSzVJVMyM=
-github.com/zoobzio/soy v1.0.0/go.mod h1:fY+S9sVUoYiJFszR7m/xwRaqgt7mmzM29OIJEkcd4CU=
+github.com/zoobzio/soy v1.0.1 h1:9PbD4rZtZDFa9n4dpVI0B4NdHDQ6xGSNLMOQZlVDWoQ=
+github.com/zoobzio/soy v1.0.1/go.mod h1:QbHYncFp2bUBfZegzSrTAcDoFKlLGQESKNY43OUu5q4=
 github.com/zoobzio/vecna v0.0.2 h1:n4SEXmp1k5JrparT7PfPS6RTH4xd/NTkvXZwQg7r8/Q=
 github.com/zoobzio/vecna v0.0.2/go.mod h1:NQxYrpZSp8Lxqk5n8f3UB95bqMdG1g+tF1Sxxawds6Y=
 go.etcd.io/bbolt v1.4.3 h1:dEadXpI6G79deX5prL3QRNP6JB8UxVkqo4UPnHaNXJo=

@@ -193,7 +193,7 @@ const (
 )
 
 // VectorProvider defines raw vector storage operations.
-// Implementations (pinecone, weaviate, milvus, qdrant, pgvector) satisfy this interface.
+// Implementations (pinecone, weaviate, milvus, qdrant) satisfy this interface.
 type VectorProvider interface {
 	// Upsert stores or updates a vector with associated metadata.
 	// If the ID exists, the vector and metadata are replaced.

@@ -31,7 +31,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/weaviate v0.40.0
 	github.com/weaviate/weaviate v1.29.0
 	github.com/weaviate/weaviate-go-client/v5 v5.0.2
-	github.com/zoobzio/astql v1.0.3
+	github.com/zoobzio/astql v1.0.5
 	github.com/zoobzio/atom v1.0.0
 	github.com/zoobzio/edamame v1.0.1
 	github.com/zoobzio/grub v0.0.0
@@ -40,7 +40,6 @@ require (
 	github.com/zoobzio/grub/bolt v0.0.0
 	github.com/zoobzio/grub/gcs v0.0.0
 	github.com/zoobzio/grub/milvus v0.0.0
-	github.com/zoobzio/grub/pgvector v0.0.0
 	github.com/zoobzio/grub/pinecone v0.0.0
 	github.com/zoobzio/grub/qdrant v0.0.0
 	github.com/zoobzio/grub/redis v0.0.0
@@ -180,7 +179,7 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	github.com/zoobzio/capitan v1.0.0 // indirect
 	github.com/zoobzio/dbml v1.0.0 // indirect
-	github.com/zoobzio/soy v1.0.0 // indirect
+	github.com/zoobzio/soy v1.0.1 // indirect
 	go.mongodb.org/mongo-driver v1.14.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.38.0 // indirect
@@ -220,7 +219,6 @@ replace (
 	github.com/zoobzio/grub/mariadb v0.0.0 => ../mariadb
 	github.com/zoobzio/grub/milvus v0.0.0 => ../milvus
 	github.com/zoobzio/grub/mssql v0.0.0 => ../mssql
-	github.com/zoobzio/grub/pgvector v0.0.0 => ../pgvector
 	github.com/zoobzio/grub/pinecone v0.0.0 => ../pinecone
 	github.com/zoobzio/grub/postgres v0.0.0 => ../postgres
 	github.com/zoobzio/grub/qdrant v0.0.0 => ../qdrant
