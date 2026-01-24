@@ -178,7 +178,179 @@ func TestDatabase_Executor(t *testing.T) {
 	}
 }
 
-func TestDatabase_Query(t *testing.T) {
+// --- Builder Accessor Tests ---
+
+func TestDatabase_QueryBuilder(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	// Use the Query builder directly
+	_, _ = db.Query().
+		Where("age", ">=", "min_age").
+		Limit(10).
+		Exec(ctx, map[string]any{"min_age": 25})
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "SELECT") {
+		t.Errorf("expected SELECT query, got: %s", query.Query)
+	}
+	if !strings.Contains(query.Query, "LIMIT") {
+		t.Errorf("expected LIMIT clause, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_SelectBuilder(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	// Use the Select builder directly
+	_, _ = db.Select().
+		Where("email", "=", "email").
+		Exec(ctx, map[string]any{"email": "test@example.com"})
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "SELECT") {
+		t.Errorf("expected SELECT query, got: %s", query.Query)
+	}
+	if !strings.Contains(query.Query, `"email"`) {
+		t.Errorf("expected email column in query, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_InsertBuilder(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	user := &TestDBUser{
+		Email: "insert@example.com",
+		Name:  "Insert User",
+		Age:   intPtr(30),
+	}
+
+	// Use the Insert builder directly (auto-gen PK)
+	_, _ = db.Insert().Exec(ctx, user)
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "INSERT") {
+		t.Errorf("expected INSERT query, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_InsertFullBuilder(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	user := &TestDBUser{
+		ID:    1,
+		Email: "insertfull@example.com",
+		Name:  "InsertFull User",
+		Age:   intPtr(35),
+	}
+
+	// Use the InsertFull builder directly (include PK)
+	_, _ = db.InsertFull().Exec(ctx, user)
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "INSERT") {
+		t.Errorf("expected INSERT query, got: %s", query.Query)
+	}
+	if !strings.Contains(query.Query, `"id"`) {
+		t.Errorf("expected id column in INSERT, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_ModifyBuilder(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	// Use the Modify builder directly
+	_, _ = db.Modify().
+		Set("name", "new_name").
+		Where("id", "=", "user_id").
+		Exec(ctx, map[string]any{"new_name": "Updated", "user_id": 1})
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "UPDATE") {
+		t.Errorf("expected UPDATE query, got: %s", query.Query)
+	}
+	if !strings.Contains(query.Query, `"name"`) {
+		t.Errorf("expected name column in SET, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_RemoveBuilder(t *testing.T) {
+	mockDB, capture := mockdb.New()
+	ctx := context.Background()
+
+	db, err := NewDatabase[TestDBUser](mockDB, "test_users", "id", testDBRenderer)
+	if err != nil {
+		t.Fatalf("NewDatabase failed: %v", err)
+	}
+
+	// Use the Remove builder directly
+	_, _ = db.Remove().
+		Where("id", "=", "user_id").
+		Exec(ctx, map[string]any{"user_id": 1})
+
+	query, ok := capture.Last()
+	if !ok {
+		t.Fatal("no query captured")
+	}
+
+	if !strings.Contains(query.Query, "DELETE") {
+		t.Errorf("expected DELETE query, got: %s", query.Query)
+	}
+	if !strings.Contains(query.Query, `"id"`) {
+		t.Errorf("expected id column in WHERE, got: %s", query.Query)
+	}
+}
+
+func TestDatabase_ExecQuery(t *testing.T) {
 	mockDB, capture := mockdb.New()
 	ctx := context.Background()
 
@@ -188,7 +360,7 @@ func TestDatabase_Query(t *testing.T) {
 	}
 
 	// Use default QueryAll statement
-	_, _ = db.Query(ctx, QueryAll, nil)
+	_, _ = db.ExecQuery(ctx, QueryAll, nil)
 
 	query, ok := capture.Last()
 	if !ok {
@@ -203,7 +375,7 @@ func TestDatabase_Query(t *testing.T) {
 	}
 }
 
-func TestDatabase_QueryWithStatement(t *testing.T) {
+func TestDatabase_ExecQueryWithStatement(t *testing.T) {
 	mockDB, capture := mockdb.New()
 	ctx := context.Background()
 
@@ -221,7 +393,7 @@ func TestDatabase_QueryWithStatement(t *testing.T) {
 		},
 	})
 
-	_, _ = db.Query(ctx, stmt, map[string]any{"min_age": 30})
+	_, _ = db.ExecQuery(ctx, stmt, map[string]any{"min_age": 30})
 
 	query, ok := capture.Last()
 	if !ok {
@@ -239,7 +411,7 @@ func TestDatabase_QueryWithStatement(t *testing.T) {
 	}
 }
 
-func TestDatabase_Select(t *testing.T) {
+func TestDatabase_ExecSelect(t *testing.T) {
 	mockDB, capture := mockdb.New()
 	ctx := context.Background()
 
@@ -254,7 +426,7 @@ func TestDatabase_Select(t *testing.T) {
 		},
 	})
 
-	_, _ = db.Select(ctx, stmt, map[string]any{"email": "test@example.com"})
+	_, _ = db.ExecSelect(ctx, stmt, map[string]any{"email": "test@example.com"})
 
 	query, ok := capture.Last()
 	if !ok {
@@ -269,7 +441,7 @@ func TestDatabase_Select(t *testing.T) {
 	}
 }
 
-func TestDatabase_Update(t *testing.T) {
+func TestDatabase_ExecUpdate(t *testing.T) {
 	mockDB, capture := mockdb.New()
 	ctx := context.Background()
 
@@ -287,7 +459,7 @@ func TestDatabase_Update(t *testing.T) {
 		},
 	})
 
-	_, _ = db.Update(ctx, stmt, map[string]any{
+	_, _ = db.ExecUpdate(ctx, stmt, map[string]any{
 		"email":    "test@example.com",
 		"new_name": "Updated",
 	})
@@ -305,7 +477,7 @@ func TestDatabase_Update(t *testing.T) {
 	}
 }
 
-func TestDatabase_Aggregate(t *testing.T) {
+func TestDatabase_ExecAggregate(t *testing.T) {
 	mockDB, capture := mockdb.New()
 	ctx := context.Background()
 
@@ -315,7 +487,7 @@ func TestDatabase_Aggregate(t *testing.T) {
 	}
 
 	// Default count aggregate
-	_, _ = db.Aggregate(ctx, CountAll, nil)
+	_, _ = db.ExecAggregate(ctx, CountAll, nil)
 
 	query, ok := capture.Last()
 	if !ok {
@@ -327,7 +499,7 @@ func TestDatabase_Aggregate(t *testing.T) {
 	}
 }
 
-func TestDatabase_AggregateSum(t *testing.T) {
+func TestDatabase_ExecAggregateSum(t *testing.T) {
 	mockDB, capture := mockdb.New()
 	ctx := context.Background()
 
@@ -340,7 +512,7 @@ func TestDatabase_AggregateSum(t *testing.T) {
 		Field: "age",
 	})
 
-	_, _ = db.Aggregate(ctx, stmt, nil)
+	_, _ = db.ExecAggregate(ctx, stmt, nil)
 
 	query, ok := capture.Last()
 	if !ok {
@@ -619,7 +791,7 @@ func TestDatabase_ExistsTx(t *testing.T) {
 	}
 }
 
-func TestDatabase_QueryTx(t *testing.T) {
+func TestDatabase_ExecQueryTx(t *testing.T) {
 	mockDB, capture := mockdb.New()
 	ctx := context.Background()
 
@@ -634,7 +806,7 @@ func TestDatabase_QueryTx(t *testing.T) {
 	}
 	defer tx.Rollback()
 
-	_, _ = db.QueryTx(ctx, tx, QueryAll, nil)
+	_, _ = db.ExecQueryTx(ctx, tx, QueryAll, nil)
 
 	query, ok := capture.Last()
 	if !ok {
@@ -649,7 +821,7 @@ func TestDatabase_QueryTx(t *testing.T) {
 	}
 }
 
-func TestDatabase_SelectTx(t *testing.T) {
+func TestDatabase_ExecSelectTx(t *testing.T) {
 	mockDB, capture := mockdb.New()
 	ctx := context.Background()
 
@@ -670,7 +842,7 @@ func TestDatabase_SelectTx(t *testing.T) {
 		},
 	})
 
-	_, _ = db.SelectTx(ctx, tx, stmt, map[string]any{"email": "test@example.com"})
+	_, _ = db.ExecSelectTx(ctx, tx, stmt, map[string]any{"email": "test@example.com"})
 
 	query, ok := capture.Last()
 	if !ok {
@@ -685,7 +857,7 @@ func TestDatabase_SelectTx(t *testing.T) {
 	}
 }
 
-func TestDatabase_UpdateTx(t *testing.T) {
+func TestDatabase_ExecUpdateTx(t *testing.T) {
 	mockDB, capture := mockdb.New()
 	ctx := context.Background()
 
@@ -709,7 +881,7 @@ func TestDatabase_UpdateTx(t *testing.T) {
 		},
 	})
 
-	_, _ = db.UpdateTx(ctx, tx, stmt, map[string]any{
+	_, _ = db.ExecUpdateTx(ctx, tx, stmt, map[string]any{
 		"email":    "test@example.com",
 		"new_name": "Updated",
 	})
@@ -727,7 +899,7 @@ func TestDatabase_UpdateTx(t *testing.T) {
 	}
 }
 
-func TestDatabase_AggregateTx(t *testing.T) {
+func TestDatabase_ExecAggregateTx(t *testing.T) {
 	mockDB, capture := mockdb.New()
 	ctx := context.Background()
 
@@ -742,7 +914,7 @@ func TestDatabase_AggregateTx(t *testing.T) {
 	}
 	defer tx.Rollback()
 
-	_, _ = db.AggregateTx(ctx, tx, CountAll, nil)
+	_, _ = db.ExecAggregateTx(ctx, tx, CountAll, nil)
 
 	query, ok := capture.Last()
 	if !ok {
