@@ -224,7 +224,7 @@ func TestDatabase_Exists(t *testing.T) {
 	}
 }
 
-func TestDatabase_Query(t *testing.T) {
+func TestDatabase_ExecQuery(t *testing.T) {
 	mockDB, capture := mockdb.New()
 	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
 	if err != nil {
@@ -238,7 +238,7 @@ func TestDatabase_Query(t *testing.T) {
 	ctx := context.Background()
 
 	stmt := edamame.NewQueryStatement("query", "Query all", edamame.QuerySpec{})
-	_, _ = db.Query(ctx, stmt, nil)
+	_, _ = db.ExecQuery(ctx, stmt, nil)
 
 	query, ok := capture.Last()
 	if !ok {
@@ -253,7 +253,7 @@ func TestDatabase_Query(t *testing.T) {
 	}
 }
 
-func TestDatabase_Select(t *testing.T) {
+func TestDatabase_ExecSelect(t *testing.T) {
 	mockDB, capture := mockdb.New()
 	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
 	if err != nil {
@@ -272,7 +272,7 @@ func TestDatabase_Select(t *testing.T) {
 		},
 	})
 
-	_, _ = db.Select(ctx, stmt, map[string]any{"email": "test@example.com"})
+	_, _ = db.ExecSelect(ctx, stmt, map[string]any{"email": "test@example.com"})
 
 	query, ok := capture.Last()
 	if !ok {
@@ -562,7 +562,7 @@ func TestDatabase_ExistsTx(t *testing.T) {
 	}
 }
 
-func TestDatabase_QueryTx(t *testing.T) {
+func TestDatabase_ExecQueryTx(t *testing.T) {
 	mockDB, capture := mockdb.New()
 	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
 	if err != nil {
@@ -582,7 +582,7 @@ func TestDatabase_QueryTx(t *testing.T) {
 	defer tx.Rollback()
 
 	stmt := edamame.NewQueryStatement("query", "Query all", edamame.QuerySpec{})
-	_, _ = db.QueryTx(ctx, tx, stmt, nil)
+	_, _ = db.ExecQueryTx(ctx, tx, stmt, nil)
 
 	query, ok := capture.Last()
 	if !ok {
@@ -597,7 +597,7 @@ func TestDatabase_QueryTx(t *testing.T) {
 	}
 }
 
-func TestDatabase_SelectTx(t *testing.T) {
+func TestDatabase_ExecSelectTx(t *testing.T) {
 	mockDB, capture := mockdb.New()
 	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
 	if err != nil {
@@ -622,7 +622,7 @@ func TestDatabase_SelectTx(t *testing.T) {
 		},
 	})
 
-	_, _ = db.SelectTx(ctx, tx, stmt, map[string]any{"email": "test@example.com"})
+	_, _ = db.ExecSelectTx(ctx, tx, stmt, map[string]any{"email": "test@example.com"})
 
 	query, ok := capture.Last()
 	if !ok {
@@ -792,7 +792,7 @@ func TestDatabase_ExistsTx_QueryError(t *testing.T) {
 	}
 }
 
-func TestDatabase_QueryTx_StatementError(t *testing.T) {
+func TestDatabase_ExecQueryTx_StatementError(t *testing.T) {
 	mockDB, _ := mockdb.New()
 	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
 	if err != nil {
@@ -818,13 +818,13 @@ func TestDatabase_QueryTx_StatementError(t *testing.T) {
 		},
 	})
 
-	_, err = db.QueryTx(ctx, tx, invalidStmt, map[string]any{"value": "test"})
+	_, err = db.ExecQueryTx(ctx, tx, invalidStmt, map[string]any{"value": "test"})
 	if err == nil {
 		t.Error("expected error for invalid statement field")
 	}
 }
 
-func TestDatabase_SelectTx_StatementError(t *testing.T) {
+func TestDatabase_ExecSelectTx_StatementError(t *testing.T) {
 	mockDB, _ := mockdb.New()
 	executor, err := edamame.New[TestUser](mockDB, "test_users", testRenderer)
 	if err != nil {
@@ -850,7 +850,7 @@ func TestDatabase_SelectTx_StatementError(t *testing.T) {
 		},
 	})
 
-	_, err = db.SelectTx(ctx, tx, invalidStmt, map[string]any{"value": "test"})
+	_, err = db.ExecSelectTx(ctx, tx, invalidStmt, map[string]any{"value": "test"})
 	if err == nil {
 		t.Error("expected error for invalid statement field")
 	}

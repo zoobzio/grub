@@ -108,13 +108,13 @@ func (d *Database[T]) Exists(ctx context.Context, key string) (bool, error) {
 	return len(results) > 0, nil
 }
 
-// Query executes a query statement and returns atoms.
-func (d *Database[T]) Query(ctx context.Context, stmt edamame.QueryStatement, params map[string]any) ([]*atom.Atom, error) {
+// ExecQuery executes a query statement and returns atoms.
+func (d *Database[T]) ExecQuery(ctx context.Context, stmt edamame.QueryStatement, params map[string]any) ([]*atom.Atom, error) {
 	return d.executor.ExecQueryAtom(ctx, stmt, params)
 }
 
-// Select executes a select statement and returns an atom.
-func (d *Database[T]) Select(ctx context.Context, stmt edamame.SelectStatement, params map[string]any) (*atom.Atom, error) {
+// ExecSelect executes a select statement and returns an atom.
+func (d *Database[T]) ExecSelect(ctx context.Context, stmt edamame.SelectStatement, params map[string]any) (*atom.Atom, error) {
 	return d.executor.ExecSelectAtom(ctx, stmt, params)
 }
 
@@ -185,8 +185,8 @@ func (d *Database[T]) ExistsTx(ctx context.Context, tx *sqlx.Tx, key string) (bo
 	return len(results) > 0, nil
 }
 
-// QueryTx executes a query statement within a transaction and returns atoms.
-func (d *Database[T]) QueryTx(ctx context.Context, tx *sqlx.Tx, stmt edamame.QueryStatement, params map[string]any) ([]*atom.Atom, error) {
+// ExecQueryTx executes a query statement within a transaction and returns atoms.
+func (d *Database[T]) ExecQueryTx(ctx context.Context, tx *sqlx.Tx, stmt edamame.QueryStatement, params map[string]any) ([]*atom.Atom, error) {
 	q, err := d.executor.Query(stmt)
 	if err != nil {
 		return nil, err
@@ -194,8 +194,8 @@ func (d *Database[T]) QueryTx(ctx context.Context, tx *sqlx.Tx, stmt edamame.Que
 	return q.ExecTxAtom(ctx, tx, params)
 }
 
-// SelectTx executes a select statement within a transaction and returns an atom.
-func (d *Database[T]) SelectTx(ctx context.Context, tx *sqlx.Tx, stmt edamame.SelectStatement, params map[string]any) (*atom.Atom, error) {
+// ExecSelectTx executes a select statement within a transaction and returns an atom.
+func (d *Database[T]) ExecSelectTx(ctx context.Context, tx *sqlx.Tx, stmt edamame.SelectStatement, params map[string]any) (*atom.Atom, error) {
 	s, err := d.executor.Select(stmt)
 	if err != nil {
 		return nil, err

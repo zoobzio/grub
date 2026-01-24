@@ -111,11 +111,11 @@ type AtomicDatabase interface {
 	// Exists checks whether a record exists at key.
 	Exists(ctx context.Context, key string) (bool, error)
 
-	// Query executes a query statement and returns atoms.
-	Query(ctx context.Context, stmt edamame.QueryStatement, params map[string]any) ([]*atom.Atom, error)
+	// ExecQuery executes a query statement and returns atoms.
+	ExecQuery(ctx context.Context, stmt edamame.QueryStatement, params map[string]any) ([]*atom.Atom, error)
 
-	// Select executes a select statement and returns an atom.
-	Select(ctx context.Context, stmt edamame.SelectStatement, params map[string]any) (*atom.Atom, error)
+	// ExecSelect executes a select statement and returns an atom.
+	ExecSelect(ctx context.Context, stmt edamame.SelectStatement, params map[string]any) (*atom.Atom, error)
 }
 
 // BucketProvider defines raw blob storage operations.

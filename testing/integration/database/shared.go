@@ -323,7 +323,7 @@ func testQuery(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to create database: %v", err)
 	}
 
-	users, err := db.Query(ctx, grub.QueryAll, nil)
+	users, err := db.ExecQuery(ctx, grub.QueryAll, nil)
 	if err != nil {
 		t.Fatalf("Query failed: %v", err)
 	}
@@ -361,7 +361,7 @@ func testQueryWithStatement(t *testing.T, tc *TestContext) {
 		},
 	})
 
-	users, err := db.Query(ctx, stmt, map[string]any{"min_age": 30})
+	users, err := db.ExecQuery(ctx, stmt, map[string]any{"min_age": 30})
 	if err != nil {
 		t.Fatalf("Query failed: %v", err)
 	}
@@ -393,7 +393,7 @@ func testQueryAtom(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to create database: %v", err)
 	}
 
-	atoms, err := db.Atomic().Query(ctx, grub.QueryAll, nil)
+	atoms, err := db.Atomic().ExecQuery(ctx, grub.QueryAll, nil)
 	if err != nil {
 		t.Fatalf("Atomic().Query failed: %v", err)
 	}
@@ -435,7 +435,7 @@ func testSelect(t *testing.T, tc *TestContext) {
 		},
 	})
 
-	user, err := db.Select(ctx, stmt, map[string]any{"email": "bob@example.com"})
+	user, err := db.ExecSelect(ctx, stmt, map[string]any{"email": "bob@example.com"})
 	if err != nil {
 		t.Fatalf("Select failed: %v", err)
 	}
@@ -468,7 +468,7 @@ func testSelectAtom(t *testing.T, tc *TestContext) {
 		},
 	})
 
-	a, err := db.Atomic().Select(ctx, stmt, map[string]any{"name": "Carol"})
+	a, err := db.Atomic().ExecSelect(ctx, stmt, map[string]any{"name": "Carol"})
 	if err != nil {
 		t.Fatalf("Atomic().Select failed: %v", err)
 	}
@@ -504,7 +504,7 @@ func testUpdate(t *testing.T, tc *TestContext) {
 		},
 	})
 
-	updated, err := db.Update(ctx, stmt, map[string]any{
+	updated, err := db.ExecUpdate(ctx, stmt, map[string]any{
 		"email":    "update@example.com",
 		"new_name": "Updated",
 	})
@@ -544,7 +544,7 @@ func testAggregate(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to create database: %v", err)
 	}
 
-	count, err := db.Aggregate(ctx, grub.CountAll, nil)
+	count, err := db.ExecAggregate(ctx, grub.CountAll, nil)
 	if err != nil {
 		t.Fatalf("Aggregate failed: %v", err)
 	}
@@ -577,7 +577,7 @@ func testAggregateSum(t *testing.T, tc *TestContext) {
 		Field: "age",
 	})
 
-	sum, err := db.Aggregate(ctx, stmt, nil)
+	sum, err := db.ExecAggregate(ctx, stmt, nil)
 	if err != nil {
 		t.Fatalf("Aggregate failed: %v", err)
 	}
@@ -616,7 +616,7 @@ func testQueryPagination(t *testing.T, tc *TestContext) {
 		OffsetParam: "offset",
 	})
 
-	page1, err := db.Query(ctx, stmt, map[string]any{"limit": 2, "offset": 0})
+	page1, err := db.ExecQuery(ctx, stmt, map[string]any{"limit": 2, "offset": 0})
 	if err != nil {
 		t.Fatalf("Query page 1 failed: %v", err)
 	}
@@ -627,7 +627,7 @@ func testQueryPagination(t *testing.T, tc *TestContext) {
 		t.Errorf("expected first user Alice, got %s", page1[0].Name)
 	}
 
-	page2, err := db.Query(ctx, stmt, map[string]any{"limit": 2, "offset": 2})
+	page2, err := db.ExecQuery(ctx, stmt, map[string]any{"limit": 2, "offset": 2})
 	if err != nil {
 		t.Fatalf("Query page 2 failed: %v", err)
 	}
@@ -866,7 +866,7 @@ func testQueryTx(t *testing.T, tc *TestContext) {
 	}
 	defer tx.Rollback()
 
-	users, err := db.QueryTx(ctx, tx, grub.QueryAll, nil)
+	users, err := db.ExecQueryTx(ctx, tx, grub.QueryAll, nil)
 	if err != nil {
 		t.Fatalf("QueryTx failed: %v", err)
 	}
@@ -904,7 +904,7 @@ func testUpdateTx(t *testing.T, tc *TestContext) {
 		},
 	})
 
-	updated, err := db.UpdateTx(ctx, tx, stmt, map[string]any{
+	updated, err := db.ExecUpdateTx(ctx, tx, stmt, map[string]any{
 		"email":    "update@example.com",
 		"new_name": "TxUpdated",
 	})
@@ -953,7 +953,7 @@ func testAggregateTx(t *testing.T, tc *TestContext) {
 	}
 	defer tx.Rollback()
 
-	count, err := db.AggregateTx(ctx, tx, grub.CountAll, nil)
+	count, err := db.ExecAggregateTx(ctx, tx, grub.CountAll, nil)
 	if err != nil {
 		t.Fatalf("AggregateTx failed: %v", err)
 	}

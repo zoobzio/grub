@@ -111,23 +111,53 @@ func (d *Database[T]) Executor() *edamame.Executor[T] {
 	return d.executor
 }
 
-// Query executes a query statement and returns multiple records.
-func (d *Database[T]) Query(ctx context.Context, stmt edamame.QueryStatement, params map[string]any) ([]*T, error) {
+// Query returns a query builder for fetching multiple records.
+func (d *Database[T]) Query() *soy.Query[T] {
+	return d.executor.Soy().Query()
+}
+
+// Select returns a select builder for fetching a single record.
+func (d *Database[T]) Select() *soy.Select[T] {
+	return d.executor.Soy().Select()
+}
+
+// Insert returns an insert builder (auto-generates PK).
+func (d *Database[T]) Insert() *soy.Create[T] {
+	return d.executor.Soy().Insert()
+}
+
+// InsertFull returns an insert builder that includes the PK field.
+func (d *Database[T]) InsertFull() *soy.Create[T] {
+	return d.executor.Soy().InsertFull()
+}
+
+// Modify returns an update builder.
+func (d *Database[T]) Modify() *soy.Update[T] {
+	return d.executor.Soy().Modify()
+}
+
+// Remove returns a delete builder.
+func (d *Database[T]) Remove() *soy.Delete[T] {
+	return d.executor.Soy().Remove()
+}
+
+// ExecQuery executes a query statement and returns multiple records.
+func (d *Database[T]) ExecQuery(ctx context.Context, stmt edamame.QueryStatement, params map[string]any) ([]*T, error) {
 	return d.executor.ExecQuery(ctx, stmt, params)
 }
 
-// Select executes a select statement and returns a single record.
-func (d *Database[T]) Select(ctx context.Context, stmt edamame.SelectStatement, params map[string]any) (*T, error) {
+// ExecSelect executes a select statement and returns a single record.
+func (d *Database[T]) ExecSelect(ctx context.Context, stmt edamame.SelectStatement, params map[string]any) (*T, error) {
 	return d.executor.ExecSelect(ctx, stmt, params)
 }
 
-// Update executes an update statement.
-func (d *Database[T]) Update(ctx context.Context, stmt edamame.UpdateStatement, params map[string]any) (*T, error) {
+// ExecUpdate executes an update statement.
+func (d *Database[T]) ExecUpdate(ctx context.Context, stmt edamame.UpdateStatement, params map[string]any) (*T, error) {
 	return d.executor.ExecUpdate(ctx, stmt, params)
 }
 
-// Aggregate executes an aggregate statement.
-func (d *Database[T]) Aggregate(ctx context.Context, stmt edamame.AggregateStatement, params map[string]any) (float64, error) {
+// ExecAggregate executes an aggregate statement.
+func (d *Database[T]) ExecAggregate(ctx context.Context, stmt edamame.AggregateStatement, params map[string]any) (float64, error) {
 	return d.executor.ExecAggregate(ctx, stmt, params)
 }
 
@@ -189,23 +219,23 @@ func (d *Database[T]) ExistsTx(ctx context.Context, tx *sqlx.Tx, key string) (bo
 	return len(results) > 0, nil
 }
 
-// QueryTx executes a query statement within a transaction and returns multiple records.
-func (d *Database[T]) QueryTx(ctx context.Context, tx *sqlx.Tx, stmt edamame.QueryStatement, params map[string]any) ([]*T, error) {
+// ExecQueryTx executes a query statement within a transaction and returns multiple records.
+func (d *Database[T]) ExecQueryTx(ctx context.Context, tx *sqlx.Tx, stmt edamame.QueryStatement, params map[string]any) ([]*T, error) {
 	return d.executor.ExecQueryTx(ctx, tx, stmt, params)
 }
 
-// SelectTx executes a select statement within a transaction and returns a single record.
-func (d *Database[T]) SelectTx(ctx context.Context, tx *sqlx.Tx, stmt edamame.SelectStatement, params map[string]any) (*T, error) {
+// ExecSelectTx executes a select statement within a transaction and returns a single record.
+func (d *Database[T]) ExecSelectTx(ctx context.Context, tx *sqlx.Tx, stmt edamame.SelectStatement, params map[string]any) (*T, error) {
 	return d.executor.ExecSelectTx(ctx, tx, stmt, params)
 }
 
-// UpdateTx executes an update statement within a transaction.
-func (d *Database[T]) UpdateTx(ctx context.Context, tx *sqlx.Tx, stmt edamame.UpdateStatement, params map[string]any) (*T, error) {
+// ExecUpdateTx executes an update statement within a transaction.
+func (d *Database[T]) ExecUpdateTx(ctx context.Context, tx *sqlx.Tx, stmt edamame.UpdateStatement, params map[string]any) (*T, error) {
 	return d.executor.ExecUpdateTx(ctx, tx, stmt, params)
 }
 
-// AggregateTx executes an aggregate statement within a transaction.
-func (d *Database[T]) AggregateTx(ctx context.Context, tx *sqlx.Tx, stmt edamame.AggregateStatement, params map[string]any) (float64, error) {
+// ExecAggregateTx executes an aggregate statement within a transaction.
+func (d *Database[T]) ExecAggregateTx(ctx context.Context, tx *sqlx.Tx, stmt edamame.AggregateStatement, params map[string]any) (float64, error) {
 	return d.executor.ExecAggregateTx(ctx, tx, stmt, params)
 }
 
