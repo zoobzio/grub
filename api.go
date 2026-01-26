@@ -142,14 +142,7 @@ type BucketProvider interface {
 
 // AtomicObject holds blob metadata with an atomized payload.
 // Used by AtomicBucket for type-agnostic access to blob data.
-type AtomicObject struct {
-	Key         string
-	ContentType string
-	Size        int64
-	ETag        string
-	Metadata    map[string]string
-	Data        *atom.Atom
-}
+type AtomicObject = shared.AtomicObject
 
 // AtomicBucket defines atom-based blob storage operations.
 // atomic.Bucket[T] satisfies this interface, enabling type-agnostic access
@@ -239,12 +232,7 @@ type VectorProvider interface {
 
 // AtomicVector holds vector data with an atomized metadata payload.
 // Used by AtomicIndex for type-agnostic access to vector data.
-type AtomicVector struct {
-	ID       uuid.UUID
-	Vector   []float32
-	Score    float32
-	Metadata *atom.Atom
-}
+type AtomicVector = shared.AtomicVector
 
 // AtomicIndex defines atom-based vector storage operations.
 // atomic.Index[T] satisfies this interface, enabling type-agnostic access

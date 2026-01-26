@@ -196,7 +196,7 @@ func TestBucket_Put(t *testing.T) {
 		payload := testPayload{Field1: "hello", Field2: 123}
 		a := atomizer.Atomize(&payload)
 
-		obj := &Object{
+		obj := &shared.AtomicObject{
 			Key:         "new-obj",
 			ContentType: "application/json",
 			Metadata:    map[string]string{"key": "value"},
@@ -220,7 +220,7 @@ func TestBucket_Put(t *testing.T) {
 		payload := testPayload{Field1: "fail", Field2: 0}
 		a := atomizer.Atomize(&payload)
 
-		obj := &Object{
+		obj := &shared.AtomicObject{
 			Key:  "fail-obj",
 			Data: a,
 		}
@@ -238,7 +238,7 @@ func TestBucket_Put(t *testing.T) {
 		payload := testPayload{Field1: "encode-fail", Field2: 0}
 		a := atomizer.Atomize(&payload)
 
-		obj := &Object{
+		obj := &shared.AtomicObject{
 			Key:  "encode-fail-obj",
 			Data: a,
 		}
@@ -323,7 +323,7 @@ func TestBucket_RoundTrip(t *testing.T) {
 	original := testPayload{Field1: "hello", Field2: 999}
 	a := atomizer.Atomize(&original)
 
-	obj := &Object{
+	obj := &shared.AtomicObject{
 		Key:         "roundtrip",
 		ContentType: "application/json",
 		Metadata:    map[string]string{"foo": "bar"},
@@ -364,7 +364,7 @@ func TestBucket_EncodeDecode(t *testing.T) {
 	payload := testPayload{Field1: "encode-test", Field2: 555}
 	a := atomizer.Atomize(&payload)
 
-	obj := &Object{
+	obj := &shared.AtomicObject{
 		Key:  "encode-key",
 		Data: a,
 	}
