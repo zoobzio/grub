@@ -24,14 +24,6 @@ type VectorProvider interface {
 	Exists(ctx context.Context, id uuid.UUID) (bool, error)
 }
 
-// Vector holds vector data with an atomized metadata payload.
-type Vector struct {
-	ID       uuid.UUID
-	Vector   []float32
-	Score    float32
-	Metadata *atom.Atom
-}
-
 // Index provides atom-based vector storage operations.
 // Satisfies the grub.AtomicIndex interface.
 type Index[T any] struct {
@@ -55,7 +47,7 @@ func (i *Index[T]) Spec() atom.Spec {
 }
 
 // Get retrieves the vector at ID with atomized metadata.
-func (i *Index[T]) Get(ctx context.Context, id uuid.UUID) (*Vector, error) {
+func (i *Index[T]) Get(ctx context.Context, id uuid.UUID) (*shared.AtomicVector, error) {
 	vector, info, err := i.provider.Get(ctx, id)
 	if err != nil {
 		return nil, err
@@ -64,7 +56,7 @@ func (i *Index[T]) Get(ctx context.Context, id uuid.UUID) (*Vector, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Vector{
+	return &shared.AtomicVector{
 		ID:       info.ID,
 		Vector:   vector,
 		Score:    info.Score,
@@ -92,7 +84,7 @@ func (i *Index[T]) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
 }
 
 // Search performs similarity search returning atomized results.
-func (i *Index[T]) Search(ctx context.Context, vector []float32, k int, filter *atom.Atom) ([]Vector, error) {
+func (i *Index[T]) Search(ctx context.Context, vector []float32, k int, filter *atom.Atom) ([]shared.AtomicVector, error) {
 	filterMap, err := i.atomToFilter(filter)
 	if err != nil {
 		return nil, err
@@ -101,13 +93,13 @@ func (i *Index[T]) Search(ctx context.Context, vector []float32, k int, filter *
 	if err != nil {
 		return nil, err
 	}
-	atomicResults := make([]Vector, len(results))
+	atomicResults := make([]shared.AtomicVector, len(results))
 	for idx, r := range results {
 		metadata, err := i.metadataToAtom(r.Metadata)
 		if err != nil {
 			return nil, err
 		}
-		atomicResults[idx] = Vector{
+		atomicResults[idx] = shared.AtomicVector{
 			ID:       r.ID,
 			Vector:   r.Vector,
 			Score:    r.Score,
@@ -118,18 +110,18 @@ func (i *Index[T]) Search(ctx context.Context, vector []float32, k int, filter *
 }
 
 // Query performs similarity search with vecna filter support.
-func (i *Index[T]) Query(ctx context.Context, vector []float32, k int, filter *vecna.Filter) ([]Vector, error) {
+func (i *Index[T]) Query(ctx context.Context, vector []float32, k int, filter *vecna.Filter) ([]shared.AtomicVector, error) {
 	results, err := i.provider.Query(ctx, vector, k, filter)
 	if err != nil {
 		return nil, err
 	}
-	atomicResults := make([]Vector, len(results))
+	atomicResults := make([]shared.AtomicVector, len(results))
 	for idx, r := range results {
 		metadata, err := i.metadataToAtom(r.Metadata)
 		if err != nil {
 			return nil, err
 		}
-		atomicResults[idx] = Vector{
+		atomicResults[idx] = shared.AtomicVector{
 			ID:       r.ID,
 			Vector:   r.Vector,
 			Score:    r.Score,
@@ -140,18 +132,18 @@ func (i *Index[T]) Query(ctx context.Context, vector []float32, k int, filter *v
 }
 
 // Filter returns vectors matching the metadata filter without similarity search.
-func (i *Index[T]) Filter(ctx context.Context, filter *vecna.Filter, limit int) ([]Vector, error) {
+func (i *Index[T]) Filter(ctx context.Context, filter *vecna.Filter, limit int) ([]shared.AtomicVector, error) {
 	results, err := i.provider.Filter(ctx, filter, limit)
 	if err != nil {
 		return nil, err
 	}
-	atomicResults := make([]Vector, len(results))
+	atomicResults := make([]shared.AtomicVector, len(results))
 	for idx, r := range results {
 		metadata, err := i.metadataToAtom(r.Metadata)
 		if err != nil {
 			return nil, err
 		}
-		atomicResults[idx] = Vector{
+		atomicResults[idx] = shared.AtomicVector{
 			ID:       r.ID,
 			Vector:   r.Vector,
 			Score:    r.Score,

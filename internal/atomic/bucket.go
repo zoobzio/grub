@@ -16,17 +16,6 @@ type BucketProvider interface {
 	Exists(ctx context.Context, key string) (bool, error)
 }
 
-// Object holds blob metadata with an atomized payload.
-// Duplicated here to avoid import cycle with parent package.
-type Object struct {
-	Key         string
-	ContentType string
-	Size        int64
-	ETag        string
-	Metadata    map[string]string
-	Data        *atom.Atom
-}
-
 // Bucket provides atom-based blob storage operations.
 // Satisfies the grub.AtomicBucket interface.
 // Only the payload T is atomized; metadata remains as-is.
@@ -51,7 +40,7 @@ func (b *Bucket[T]) Spec() atom.Spec {
 }
 
 // Get retrieves the blob at key with atomized payload.
-func (b *Bucket[T]) Get(ctx context.Context, key string) (*Object, error) {
+func (b *Bucket[T]) Get(ctx context.Context, key string) (*shared.AtomicObject, error) {
 	data, info, err := b.provider.Get(ctx, key)
 	if err != nil {
 		return nil, err
@@ -64,7 +53,7 @@ func (b *Bucket[T]) Get(ctx context.Context, key string) (*Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Object{
+	return &shared.AtomicObject{
 		Key:         info.Key,
 		ContentType: info.ContentType,
 		Size:        info.Size,
@@ -75,7 +64,7 @@ func (b *Bucket[T]) Get(ctx context.Context, key string) (*Object, error) {
 }
 
 // Put stores an object with atomized payload at key.
-func (b *Bucket[T]) Put(ctx context.Context, key string, obj *Object) error {
+func (b *Bucket[T]) Put(ctx context.Context, key string, obj *shared.AtomicObject) error {
 	atomizer, err := atom.Use[T]()
 	if err != nil {
 		return err

@@ -16,13 +16,13 @@ require (
 	github.com/oapi-codegen/runtime v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
-	github.com/zoobzio/astql v1.0.4 // indirect
+	github.com/zoobzio/astql v1.0.5 // indirect
 	github.com/zoobzio/atom v1.0.0 // indirect
 	github.com/zoobzio/capitan v1.0.0 // indirect
 	github.com/zoobzio/dbml v1.0.0 // indirect
 	github.com/zoobzio/edamame v1.0.1 // indirect
 	github.com/zoobzio/sentinel v1.0.2 // indirect
-	github.com/zoobzio/soy v1.0.0 // indirect
+	github.com/zoobzio/soy v1.0.2 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.32.0 // indirect

@@ -1,7 +1,10 @@
 // Package shared contains canonical type definitions shared across grub.
 package shared //nolint:revive // internal shared package is intentional
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+	"github.com/zoobzio/atom"
+)
 
 // VectorInfo holds provider-level metadata for vector storage.
 type VectorInfo struct {
@@ -45,4 +48,13 @@ type VectorResult struct {
 	Vector   []float32
 	Metadata []byte
 	Score    float32
+}
+
+// AtomicVector holds vector data with an atomized metadata payload.
+// Used by AtomicIndex for type-agnostic access to vector data.
+type AtomicVector struct {
+	ID       uuid.UUID
+	Vector   []float32
+	Score    float32
+	Metadata *atom.Atom
 }
