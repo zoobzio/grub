@@ -99,7 +99,7 @@ func testGet(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to insert test record: %v", err)
 	}
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -129,7 +129,7 @@ func testGetAtom(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to insert test record: %v", err)
 	}
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -154,7 +154,7 @@ func testSet(t *testing.T, tc *TestContext) {
 	tc.Reset(t)
 	ctx := context.Background()
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -190,7 +190,7 @@ func testSetUpdate(t *testing.T, tc *TestContext) {
 	tc.Reset(t)
 	ctx := context.Background()
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -228,7 +228,7 @@ func testSetAtom(t *testing.T, tc *TestContext) {
 	tc.Reset(t)
 	ctx := context.Background()
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -271,7 +271,7 @@ func testDelete(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to insert test record: %v", err)
 	}
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -291,7 +291,7 @@ func testDeleteNotFound(t *testing.T, tc *TestContext) {
 	tc.Reset(t)
 	ctx := context.Background()
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -318,7 +318,7 @@ func testQuery(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to insert test records: %v", err)
 	}
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -347,7 +347,7 @@ func testQueryWithStatement(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to insert test records: %v", err)
 	}
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -388,7 +388,7 @@ func testQueryAtom(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to insert test records: %v", err)
 	}
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -424,7 +424,7 @@ func testSelect(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to insert test records: %v", err)
 	}
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -457,7 +457,7 @@ func testSelectAtom(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to insert test record: %v", err)
 	}
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -490,7 +490,7 @@ func testUpdate(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to insert test record: %v", err)
 	}
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -539,7 +539,7 @@ func testAggregate(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to insert test records: %v", err)
 	}
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -568,7 +568,7 @@ func testAggregateSum(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to insert test records: %v", err)
 	}
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -603,7 +603,7 @@ func testQueryPagination(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to insert test records: %v", err)
 	}
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -662,7 +662,7 @@ func testGetTx(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to insert test record: %v", err)
 	}
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -687,7 +687,7 @@ func testSetTx(t *testing.T, tc *TestContext) {
 	tc.Reset(t)
 	ctx := context.Background()
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -733,7 +733,7 @@ func testDeleteTx(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to insert test record: %v", err)
 	}
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -763,7 +763,7 @@ func testTransactionCommit(t *testing.T, tc *TestContext) {
 	tc.Reset(t)
 	ctx := context.Background()
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -806,7 +806,7 @@ func testTransactionRollback(t *testing.T, tc *TestContext) {
 	tc.Reset(t)
 	ctx := context.Background()
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -855,7 +855,7 @@ func testQueryTx(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to insert test records: %v", err)
 	}
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -885,7 +885,7 @@ func testUpdateTx(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to insert test record: %v", err)
 	}
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -942,7 +942,7 @@ func testAggregateTx(t *testing.T, tc *TestContext) {
 		t.Fatalf("failed to insert test records: %v", err)
 	}
 
-	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", "id", tc.Renderer)
+	db, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}

@@ -3,6 +3,7 @@ package grub
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 
 	"github.com/jmoiron/sqlx"
@@ -32,14 +33,53 @@ type Database[T any] struct {
 	atomicOnce sync.Once
 }
 
+// findPrimaryKey inspects the struct metadata and returns the db column name
+// of the field tagged with constraints:"primarykey".
+func findPrimaryKey[T any](exec *edamame.Executor[T]) (string, error) {
+	s := exec.Soy()
+	var keyCol string
+
+	for _, field := range s.Metadata().Fields {
+		constraints := field.Tags["constraints"]
+		if constraints == "" {
+			continue
+		}
+		for _, c := range strings.Split(constraints, ",") {
+			if strings.TrimSpace(c) != "primarykey" {
+				continue
+			}
+			col := field.Tags["db"]
+			if col == "" || col == "-" {
+				continue
+			}
+			if keyCol != "" {
+				return "", ErrMultiplePrimaryKeys
+			}
+			keyCol = col
+			break
+		}
+	}
+
+	if keyCol == "" {
+		return "", ErrNoPrimaryKey
+	}
+	return keyCol, nil
+}
+
 // NewDatabase creates a Database for type T.
-// keyCol specifies the column used for key-based lookups (e.g., "id").
+// The primary key column is derived from the struct field tagged with constraints:"primarykey".
 // Use the *Tx method variants (GetTx, SetTx, etc.) for transaction support.
-func NewDatabase[T any](db *sqlx.DB, table, keyCol string, renderer astql.Renderer) (*Database[T], error) {
+func NewDatabase[T any](db *sqlx.DB, table string, renderer astql.Renderer) (*Database[T], error) {
 	exec, err := edamame.New[T](db, table, renderer)
 	if err != nil {
 		return nil, err
 	}
+
+	keyCol, err := findPrimaryKey(exec)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Database[T]{
 		executor:  exec,
 		keyCol:    keyCol,

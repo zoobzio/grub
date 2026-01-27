@@ -49,4 +49,10 @@ var (
 
 	// ErrFilterNotSupported indicates the provider does not support metadata-only filtering.
 	ErrFilterNotSupported = errors.New("grub: filter not supported by provider")
+
+	// ErrNoPrimaryKey indicates no field has the primarykey constraint.
+	ErrNoPrimaryKey = errors.New("grub: no primary key defined in struct tags")
+
+	// ErrMultiplePrimaryKeys indicates multiple fields have the primarykey constraint.
+	ErrMultiplePrimaryKeys = errors.New("grub: multiple primary keys not supported")
 )

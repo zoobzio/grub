@@ -31,6 +31,8 @@ var (
 	ErrInvalidQuery         = shared.ErrInvalidQuery
 	ErrOperatorNotSupported = shared.ErrOperatorNotSupported
 	ErrFilterNotSupported   = shared.ErrFilterNotSupported
+	ErrNoPrimaryKey         = shared.ErrNoPrimaryKey
+	ErrMultiplePrimaryKeys  = shared.ErrMultiplePrimaryKeys
 )
 
 // StoreProvider defines raw key-value storage operations.
