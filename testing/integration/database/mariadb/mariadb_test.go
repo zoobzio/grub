@@ -87,3 +87,7 @@ func TestMariaDB_Query(t *testing.T) {
 func TestMariaDB_Transaction(t *testing.T) {
 	database.RunTransactionTests(t, tc)
 }
+
+func TestMariaDB_Hooks(t *testing.T) {
+	database.RunHookTests(t, tc)
+}

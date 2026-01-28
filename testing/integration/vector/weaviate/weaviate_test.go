@@ -147,3 +147,7 @@ func TestWeaviate_Query(t *testing.T) {
 func TestWeaviate_Filter(t *testing.T) {
 	vector.RunFilterTests(t, tc, true)
 }
+
+func TestWeaviate_Hooks(t *testing.T) {
+	vector.RunHookTests(t, tc)
+}

@@ -79,3 +79,7 @@ func TestPostgres_Query(t *testing.T) {
 func TestPostgres_Transaction(t *testing.T) {
 	database.RunTransactionTests(t, tc)
 }
+
+func TestPostgres_Hooks(t *testing.T) {
+	database.RunHookTests(t, tc)
+}

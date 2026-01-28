@@ -72,3 +72,7 @@ func TestRedis_TTL(t *testing.T) {
 func TestRedis_Batch(t *testing.T) {
 	kv.RunBatchTests(t, tc)
 }
+
+func TestRedis_Hooks(t *testing.T) {
+	kv.RunHookTests(t, tc)
+}

@@ -120,6 +120,121 @@ type QueryOperators struct {
 	Contains bool
 }
 
+// HookedMetadata is a model with lifecycle hooks for integration testing.
+type HookedMetadata struct {
+	Category string `json:"category,omitempty"`
+	Score    float64 `json:"score,omitempty"`
+
+	afterLoadCalled bool
+}
+
+func (h *HookedMetadata) AfterLoad(_ context.Context) error {
+	h.afterLoadCalled = true
+	return nil
+}
+
+func (h *HookedMetadata) BeforeSave(_ context.Context) error { return nil }
+func (h *HookedMetadata) AfterSave(_ context.Context) error  { return nil }
+
+// FailingBeforeSaveMetadata always fails BeforeSave.
+type FailingBeforeSaveMetadata struct {
+	Category string `json:"category,omitempty"`
+}
+
+var errTestHook = errors.New("test hook error")
+
+func (f *FailingBeforeSaveMetadata) BeforeSave(_ context.Context) error { return errTestHook }
+
+// RunHookTests runs the lifecycle hook test suite for vector indices.
+func RunHookTests(t *testing.T, tc *TestContext) {
+	t.Run("AfterLoadOnGet", func(t *testing.T) { testHookAfterLoadGet(t, tc) })
+	t.Run("AfterLoadOnSearch", func(t *testing.T) { testHookAfterLoadSearch(t, tc) })
+	t.Run("BeforeSaveOnUpsert", func(t *testing.T) { testHookBeforeSaveUpsert(t, tc) })
+	t.Run("BeforeSaveErrorAborts", func(t *testing.T) { testHookBeforeSaveError(t, tc) })
+}
+
+func testHookAfterLoadGet(t *testing.T, tc *TestContext) {
+	ctx := context.Background()
+	index := grub.NewIndex[HookedMetadata](tc.Provider)
+
+	id := testID()
+	meta := &HookedMetadata{Category: "test", Score: 1.0}
+	if err := index.Upsert(ctx, id, []float32{1.0, 0.0, 0.0}, meta); err != nil {
+		t.Fatalf("Upsert failed: %v", err)
+	}
+
+	got, err := index.Get(ctx, id)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if !got.Metadata.afterLoadCalled {
+		t.Error("AfterLoad not called on Get")
+	}
+	if got.Metadata.Category != "test" {
+		t.Errorf("expected category 'test', got %q", got.Metadata.Category)
+	}
+}
+
+func testHookAfterLoadSearch(t *testing.T, tc *TestContext) {
+	ctx := context.Background()
+	index := grub.NewIndex[HookedMetadata](tc.Provider)
+
+	id := testID()
+	meta := &HookedMetadata{Category: "search", Score: 2.0}
+	if err := index.Upsert(ctx, id, []float32{0.0, 1.0, 0.0}, meta); err != nil {
+		t.Fatalf("Upsert failed: %v", err)
+	}
+
+	results, err := index.Search(ctx, []float32{0.0, 1.0, 0.0}, 1, nil)
+	if err != nil {
+		t.Fatalf("Search failed: %v", err)
+	}
+	if len(results) == 0 {
+		t.Fatal("expected at least 1 result")
+	}
+	if !results[0].Metadata.afterLoadCalled {
+		t.Error("AfterLoad not called on Search result")
+	}
+}
+
+func testHookBeforeSaveUpsert(t *testing.T, tc *TestContext) {
+	ctx := context.Background()
+	index := grub.NewIndex[HookedMetadata](tc.Provider)
+
+	id := testID()
+	meta := &HookedMetadata{Category: "saved", Score: 3.0}
+	if err := index.Upsert(ctx, id, []float32{0.0, 0.0, 1.0}, meta); err != nil {
+		t.Fatalf("Upsert failed: %v", err)
+	}
+
+	got, err := index.Get(ctx, id)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if got.Metadata.Category != "saved" {
+		t.Errorf("expected category 'saved', got %q", got.Metadata.Category)
+	}
+}
+
+func testHookBeforeSaveError(t *testing.T, tc *TestContext) {
+	ctx := context.Background()
+	index := grub.NewIndex[FailingBeforeSaveMetadata](tc.Provider)
+
+	id := testID()
+	meta := &FailingBeforeSaveMetadata{Category: "fail"}
+	err := index.Upsert(ctx, id, []float32{1.0, 1.0, 1.0}, meta)
+	if !errors.Is(err, errTestHook) {
+		t.Fatalf("expected hook error, got: %v", err)
+	}
+
+	// Verify nothing was persisted
+	index2 := grub.NewIndex[TestMetadata](tc.Provider)
+	_, err = index2.Get(ctx, id)
+	if !errors.Is(err, grub.ErrNotFound) {
+		t.Errorf("expected ErrNotFound (record should not exist), got: %v", err)
+	}
+}
+
 // --- CRUD Tests ---
 
 func testGetNotFound(t *testing.T, tc *TestContext) {

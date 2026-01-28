@@ -49,7 +49,7 @@ github.com/zoobzio/edamame v1.0.1 h1:Mynav/EvOEVjQ36JrKm9I3k7nm9t3VgGC1bpyw2rFMA
 github.com/zoobzio/edamame v1.0.1/go.mod h1:UVfTcjd//Nfs2lLNWrQqomd0O9f0ic31PftXz3KvyWw=
 github.com/zoobzio/sentinel v1.0.2 h1:hTs5Ke2Vi0VgOkoHSJF9G3BYnxTQjMbvOH+qbbQLaoY=
 github.com/zoobzio/sentinel v1.0.2/go.mod h1:gtsD0AYlTEI8ajpEQ3azb7BDZicdsESOB1dJpQqgDKc=
-github.com/zoobzio/soy v1.0.2 h1:nNymMAvjZRJ1rHJFDDOCTFC7/mdKcgXuFE4JyAKT0FM=
+github.com/zoobzio/soy v1.0.3 h1:Qkl/v2XHv2bd/zo8YfVtIygKtzHclRwvXFnGVpRpwbg=
 github.com/zoobzio/vecna v0.0.2 h1:n4SEXmp1k5JrparT7PfPS6RTH4xd/NTkvXZwQg7r8/Q=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
 go.opentelemetry.io/otel v1.38.0 h1:RkfdswUDRimDg0m2Az18RKOsnI8UDzppJAtj01/Ymk8=

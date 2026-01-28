@@ -52,3 +52,7 @@ func TestBolt_Atomic(t *testing.T) {
 func TestBolt_Batch(t *testing.T) {
 	kv.RunBatchTests(t, tc)
 }
+
+func TestBolt_Hooks(t *testing.T) {
+	kv.RunHookTests(t, tc)
+}

@@ -100,3 +100,7 @@ func TestGCS_Atomic(t *testing.T) {
 func TestGCS_List(t *testing.T) {
 	bucket.RunListTests(t, tc)
 }
+
+func TestGCS_Hooks(t *testing.T) {
+	bucket.RunHookTests(t, tc)
+}

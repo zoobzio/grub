@@ -51,3 +51,7 @@ func TestSQLite_Query(t *testing.T) {
 func TestSQLite_Transaction(t *testing.T) {
 	database.RunTransactionTests(t, tc)
 }
+
+func TestSQLite_Hooks(t *testing.T) {
+	database.RunHookTests(t, tc)
+}
