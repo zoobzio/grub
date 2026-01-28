@@ -88,6 +88,174 @@ func RunQueryTests(t *testing.T, tc *TestContext) {
 	t.Run("QueryPagination", func(t *testing.T) { testQueryPagination(t, tc) })
 }
 
+// HookedUser is a model with lifecycle hooks for integration testing.
+// It uses the same table schema as TestUser.
+type HookedUser struct {
+	ID    int    `db:"id" constraints:"primarykey"`
+	Email string `db:"email" constraints:"notnull,unique"`
+	Name  string `db:"name" constraints:"notnull"`
+	Age   *int   `db:"age"`
+
+	afterLoadCalled bool
+}
+
+func (h *HookedUser) AfterLoad(_ context.Context) error {
+	h.afterLoadCalled = true
+	return nil
+}
+
+func (h *HookedUser) BeforeSave(_ context.Context) error { return nil }
+func (h *HookedUser) AfterSave(_ context.Context) error  { return nil }
+
+// FailingBeforeSaveUser always fails BeforeSave.
+type FailingBeforeSaveUser struct {
+	ID    int    `db:"id" constraints:"primarykey"`
+	Email string `db:"email" constraints:"notnull,unique"`
+	Name  string `db:"name" constraints:"notnull"`
+	Age   *int   `db:"age"`
+}
+
+var errTestHook = errors.New("test hook error")
+
+func (f *FailingBeforeSaveUser) BeforeSave(_ context.Context) error { return errTestHook }
+
+// RunHookTests runs the lifecycle hook test suite.
+func RunHookTests(t *testing.T, tc *TestContext) {
+	t.Run("AfterLoadOnGet", func(t *testing.T) { testHookAfterLoadGet(t, tc) })
+	t.Run("AfterLoadOnExecQuery", func(t *testing.T) { testHookAfterLoadExecQuery(t, tc) })
+	t.Run("AfterLoadOnExecSelect", func(t *testing.T) { testHookAfterLoadExecSelect(t, tc) })
+	t.Run("BeforeSaveOnSet", func(t *testing.T) { testHookBeforeSaveSet(t, tc) })
+	t.Run("BeforeSaveErrorAborts", func(t *testing.T) { testHookBeforeSaveError(t, tc) })
+}
+
+func testHookAfterLoadGet(t *testing.T, tc *TestContext) {
+	tc.Reset(t)
+	ctx := context.Background()
+
+	tc.InsertUser(t, 1, "hook@example.com", "Hook User", 25)
+
+	db, err := grub.NewDatabase[HookedUser](tc.DB, "test_users", tc.Renderer)
+	if err != nil {
+		t.Fatalf("failed to create database: %v", err)
+	}
+
+	user, err := db.Get(ctx, "1")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+
+	if !user.afterLoadCalled {
+		t.Error("AfterLoad not called on Get")
+	}
+	if user.Email != "hook@example.com" {
+		t.Errorf("expected email 'hook@example.com', got %q", user.Email)
+	}
+}
+
+func testHookAfterLoadExecQuery(t *testing.T, tc *TestContext) {
+	tc.Reset(t)
+	ctx := context.Background()
+
+	tc.InsertUser(t, 1, "a@example.com", "A", 20)
+	tc.InsertUser(t, 2, "b@example.com", "B", 30)
+
+	db, err := grub.NewDatabase[HookedUser](tc.DB, "test_users", tc.Renderer)
+	if err != nil {
+		t.Fatalf("failed to create database: %v", err)
+	}
+
+	results, err := db.ExecQuery(ctx, grub.QueryAll, nil)
+	if err != nil {
+		t.Fatalf("ExecQuery failed: %v", err)
+	}
+
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+	for i, r := range results {
+		if !r.afterLoadCalled {
+			t.Errorf("AfterLoad not called on result %d", i)
+		}
+	}
+}
+
+func testHookAfterLoadExecSelect(t *testing.T, tc *TestContext) {
+	tc.Reset(t)
+	ctx := context.Background()
+
+	tc.InsertUser(t, 1, "sel@example.com", "Select User", 25)
+
+	db, err := grub.NewDatabase[HookedUser](tc.DB, "test_users", tc.Renderer)
+	if err != nil {
+		t.Fatalf("failed to create database: %v", err)
+	}
+
+	stmt := edamame.NewSelectStatement("by_email", "Select by email", edamame.SelectSpec{
+		Where: []edamame.ConditionSpec{
+			{Field: "email", Operator: "=", Param: "email"},
+		},
+	})
+
+	result, err := db.ExecSelect(ctx, stmt, map[string]any{"email": "sel@example.com"})
+	if err != nil {
+		t.Fatalf("ExecSelect failed: %v", err)
+	}
+
+	if !result.afterLoadCalled {
+		t.Error("AfterLoad not called on ExecSelect result")
+	}
+}
+
+func testHookBeforeSaveSet(t *testing.T, tc *TestContext) {
+	tc.Reset(t)
+	ctx := context.Background()
+
+	db, err := grub.NewDatabase[HookedUser](tc.DB, "test_users", tc.Renderer)
+	if err != nil {
+		t.Fatalf("failed to create database: %v", err)
+	}
+
+	age := 25
+	user := &HookedUser{ID: 1, Email: "save@example.com", Name: "Saved", Age: &age}
+	if err := db.Set(ctx, "1", user); err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
+
+	got, err := db.Get(ctx, "1")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if got.Name != "Saved" {
+		t.Errorf("expected name 'Saved', got %q", got.Name)
+	}
+}
+
+func testHookBeforeSaveError(t *testing.T, tc *TestContext) {
+	tc.Reset(t)
+	ctx := context.Background()
+
+	db, err := grub.NewDatabase[FailingBeforeSaveUser](tc.DB, "test_users", tc.Renderer)
+	if err != nil {
+		t.Fatalf("failed to create database: %v", err)
+	}
+
+	user := &FailingBeforeSaveUser{ID: 1, Email: "fail@example.com", Name: "Fail"}
+	err = db.Set(ctx, "1", user)
+	if !errors.Is(err, errTestHook) {
+		t.Fatalf("expected hook error, got: %v", err)
+	}
+
+	// Verify nothing was persisted
+	db2, err := grub.NewDatabase[TestUser](tc.DB, "test_users", tc.Renderer)
+	if err != nil {
+		t.Fatalf("failed to create database: %v", err)
+	}
+	_, err = db2.Get(ctx, "1")
+	if !errors.Is(err, grub.ErrNotFound) {
+		t.Errorf("expected ErrNotFound (record should not exist), got: %v", err)
+	}
+}
+
 // --- CRUD Tests ---
 
 func testGet(t *testing.T, tc *TestContext) {

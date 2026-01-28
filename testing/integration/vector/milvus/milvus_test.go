@@ -156,3 +156,7 @@ func TestMilvus_Query(t *testing.T) {
 func TestMilvus_Filter(t *testing.T) {
 	vector.RunFilterTests(t, tc, true)
 }
+
+func TestMilvus_Hooks(t *testing.T) {
+	vector.RunHookTests(t, tc)
+}

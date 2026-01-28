@@ -39,28 +39,50 @@ func NewIndexWithCodec[T any](provider VectorProvider, codec Codec) *Index[T] {
 // Upsert stores or updates a vector with associated metadata.
 // If the ID exists, the vector and metadata are replaced.
 func (i *Index[T]) Upsert(ctx context.Context, id uuid.UUID, vector []float32, metadata *T) error {
+	if metadata != nil {
+		if err := callBeforeSave(ctx, metadata); err != nil {
+			return err
+		}
+	}
 	m, err := i.encodeMetadata(metadata)
 	if err != nil {
 		return err
 	}
-	return i.provider.Upsert(ctx, id, vector, m)
+	if err := i.provider.Upsert(ctx, id, vector, m); err != nil {
+		return err
+	}
+	if metadata != nil {
+		return callAfterSave(ctx, metadata)
+	}
+	return nil
 }
 
 // UpsertBatch stores or updates multiple vectors.
 func (i *Index[T]) UpsertBatch(ctx context.Context, vectors []Vector[T]) error {
 	records := make([]VectorRecord, len(vectors))
-	for idx, v := range vectors {
-		m, err := i.encodeMetadata(&v.Metadata)
+	for idx := range vectors {
+		if err := callBeforeSave(ctx, &vectors[idx].Metadata); err != nil {
+			return err
+		}
+		m, err := i.encodeMetadata(&vectors[idx].Metadata)
 		if err != nil {
 			return err
 		}
 		records[idx] = VectorRecord{
-			ID:       v.ID,
-			Vector:   v.Vector,
+			ID:       vectors[idx].ID,
+			Vector:   vectors[idx].Vector,
 			Metadata: m,
 		}
 	}
-	return i.provider.UpsertBatch(ctx, records)
+	if err := i.provider.UpsertBatch(ctx, records); err != nil {
+		return err
+	}
+	for idx := range vectors {
+		if err := callAfterSave(ctx, &vectors[idx].Metadata); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Get retrieves a vector by ID.
@@ -74,6 +96,9 @@ func (i *Index[T]) Get(ctx context.Context, id uuid.UUID) (*Vector[T], error) {
 	if err := i.decodeMetadata(info.Metadata, &metadata); err != nil {
 		return nil, err
 	}
+	if err := callAfterLoad(ctx, &metadata); err != nil {
+		return nil, err
+	}
 	return &Vector[T]{
 		ID:       info.ID,
 		Vector:   vector,
@@ -85,13 +110,25 @@ func (i *Index[T]) Get(ctx context.Context, id uuid.UUID) (*Vector[T], error) {
 // Delete removes a vector by ID.
 // Returns ErrNotFound if the ID does not exist.
 func (i *Index[T]) Delete(ctx context.Context, id uuid.UUID) error {
-	return i.provider.Delete(ctx, id)
+	if err := callBeforeDelete[T](ctx); err != nil {
+		return err
+	}
+	if err := i.provider.Delete(ctx, id); err != nil {
+		return err
+	}
+	return callAfterDelete[T](ctx)
 }
 
 // DeleteBatch removes multiple vectors by ID.
 // Non-existent IDs are silently ignored.
 func (i *Index[T]) DeleteBatch(ctx context.Context, ids []uuid.UUID) error {
-	return i.provider.DeleteBatch(ctx, ids)
+	if err := callBeforeDelete[T](ctx); err != nil {
+		return err
+	}
+	if err := i.provider.DeleteBatch(ctx, ids); err != nil {
+		return err
+	}
+	return callAfterDelete[T](ctx)
 }
 
 // Search performs similarity search and returns the k nearest neighbors.
@@ -109,6 +146,9 @@ func (i *Index[T]) Search(ctx context.Context, vector []float32, k int, filter *
 	for idx, r := range results {
 		var metadata T
 		if err := i.decodeMetadata(r.Metadata, &metadata); err != nil {
+			return nil, err
+		}
+		if err := callAfterLoad(ctx, &metadata); err != nil {
 			return nil, err
 		}
 		vectors[idx] = &Vector[T]{
@@ -135,6 +175,9 @@ func (i *Index[T]) Query(ctx context.Context, vector []float32, k int, filter *v
 		if err := i.decodeMetadata(r.Metadata, &metadata); err != nil {
 			return nil, err
 		}
+		if err := callAfterLoad(ctx, &metadata); err != nil {
+			return nil, err
+		}
 		vectors[idx] = &Vector[T]{
 			ID:       r.ID,
 			Vector:   r.Vector,
@@ -158,6 +201,9 @@ func (i *Index[T]) Filter(ctx context.Context, filter *vecna.Filter, limit int) 
 	for idx, r := range results {
 		var metadata T
 		if err := i.decodeMetadata(r.Metadata, &metadata); err != nil {
+			return nil, err
+		}
+		if err := callAfterLoad(ctx, &metadata); err != nil {
 			return nil, err
 		}
 		vectors[idx] = &Vector[T]{

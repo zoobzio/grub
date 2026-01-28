@@ -80,6 +80,12 @@ func NewDatabase[T any](db *sqlx.DB, table string, renderer astql.Renderer) (*Da
 		return nil, err
 	}
 
+	// Register lifecycle hook callbacks on the soy instance so hooks
+	// fire through both wrapper methods and direct builder paths.
+	s := exec.Soy()
+	s.OnScan(callAfterLoad)
+	s.OnRecord(callBeforeSave)
+
 	return &Database[T]{
 		executor:  exec,
 		keyCol:    keyCol,
@@ -117,11 +123,17 @@ func (d *Database[T]) Set(ctx context.Context, _ string, value *T) error {
 	}
 
 	_, err := insert.Build().Exec(ctx, value)
-	return err
+	if err != nil {
+		return err
+	}
+	return callAfterSave(ctx, value)
 }
 
 // Delete removes the record at key.
 func (d *Database[T]) Delete(ctx context.Context, key string) error {
+	if err := callBeforeDelete[T](ctx); err != nil {
+		return err
+	}
 	affected, err := d.executor.Soy().Remove().
 		Where(d.keyCol, "=", "key").
 		Exec(ctx, map[string]any{"key": key})
@@ -131,7 +143,7 @@ func (d *Database[T]) Delete(ctx context.Context, key string) error {
 	if affected == 0 {
 		return ErrNotFound
 	}
-	return nil
+	return callAfterDelete[T](ctx)
 }
 
 // Exists checks whether a record exists at key.
@@ -230,11 +242,17 @@ func (d *Database[T]) SetTx(ctx context.Context, tx *sqlx.Tx, _ string, value *T
 	}
 
 	_, err := insert.Build().ExecTx(ctx, tx, value)
-	return err
+	if err != nil {
+		return err
+	}
+	return callAfterSave(ctx, value)
 }
 
 // DeleteTx removes the record at key within a transaction.
 func (d *Database[T]) DeleteTx(ctx context.Context, tx *sqlx.Tx, key string) error {
+	if err := callBeforeDelete[T](ctx); err != nil {
+		return err
+	}
 	affected, err := d.executor.Soy().Remove().
 		Where(d.keyCol, "=", "key").
 		ExecTx(ctx, tx, map[string]any{"key": key})
@@ -244,7 +262,7 @@ func (d *Database[T]) DeleteTx(ctx context.Context, tx *sqlx.Tx, key string) err
 	if affected == 0 {
 		return ErrNotFound
 	}
-	return nil
+	return callAfterDelete[T](ctx)
 }
 
 // ExistsTx checks whether a record exists at key within a transaction.

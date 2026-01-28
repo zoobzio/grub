@@ -89,3 +89,7 @@ func TestMSSQL_Query(t *testing.T) {
 func TestMSSQL_Transaction(t *testing.T) {
 	database.RunTransactionTests(t, tc)
 }
+
+func TestMSSQL_Hooks(t *testing.T) {
+	database.RunHookTests(t, tc)
+}

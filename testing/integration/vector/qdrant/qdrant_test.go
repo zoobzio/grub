@@ -121,3 +121,7 @@ func TestQdrant_Query(t *testing.T) {
 func TestQdrant_Filter(t *testing.T) {
 	vector.RunFilterTests(t, tc, true)
 }
+
+func TestQdrant_Hooks(t *testing.T) {
+	vector.RunHookTests(t, tc)
+}

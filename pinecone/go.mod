@@ -22,7 +22,7 @@ require (
 	github.com/zoobzio/dbml v1.0.0 // indirect
 	github.com/zoobzio/edamame v1.0.1 // indirect
 	github.com/zoobzio/sentinel v1.0.2 // indirect
-	github.com/zoobzio/soy v1.0.2 // indirect
+	github.com/zoobzio/soy v1.0.3 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.32.0 // indirect

@@ -115,3 +115,7 @@ func TestS3_Atomic(t *testing.T) {
 func TestS3_List(t *testing.T) {
 	bucket.RunListTests(t, tc)
 }
+
+func TestS3_Hooks(t *testing.T) {
+	bucket.RunHookTests(t, tc)
+}

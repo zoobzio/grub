@@ -57,6 +57,122 @@ func RunBatchTests(t *testing.T, tc *TestContext) {
 	t.Run("SetBatch", func(t *testing.T) { testSetBatch(t, tc) })
 }
 
+// HookedValue is a model with lifecycle hooks for integration testing.
+type HookedValue struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+
+	afterLoadCalled bool
+}
+
+func (h *HookedValue) AfterLoad(_ context.Context) error {
+	h.afterLoadCalled = true
+	return nil
+}
+
+func (h *HookedValue) BeforeSave(_ context.Context) error { return nil }
+func (h *HookedValue) AfterSave(_ context.Context) error  { return nil }
+
+// FailingBeforeSaveValue always fails BeforeSave.
+type FailingBeforeSaveValue struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+var errTestHook = errors.New("test hook error")
+
+func (f *FailingBeforeSaveValue) BeforeSave(_ context.Context) error { return errTestHook }
+
+// RunHookTests runs the lifecycle hook test suite for KV stores.
+func RunHookTests(t *testing.T, tc *TestContext) {
+	t.Run("AfterLoadOnGet", func(t *testing.T) { testHookAfterLoadGet(t, tc) })
+	t.Run("AfterLoadOnGetBatch", func(t *testing.T) { testHookAfterLoadGetBatch(t, tc) })
+	t.Run("BeforeSaveOnSet", func(t *testing.T) { testHookBeforeSaveSet(t, tc) })
+	t.Run("BeforeSaveErrorAborts", func(t *testing.T) { testHookBeforeSaveError(t, tc) })
+}
+
+func testHookAfterLoadGet(t *testing.T, tc *TestContext) {
+	ctx := context.Background()
+	store := grub.NewStore[HookedValue](tc.Provider)
+
+	value := &HookedValue{ID: "hook-1", Name: "Hook Value", Count: 42}
+	if err := store.Set(ctx, "hook-get-key", value, 0); err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
+
+	got, err := store.Get(ctx, "hook-get-key")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if !got.afterLoadCalled {
+		t.Error("AfterLoad not called on Get")
+	}
+	if got.Name != "Hook Value" {
+		t.Errorf("expected name 'Hook Value', got %q", got.Name)
+	}
+}
+
+func testHookAfterLoadGetBatch(t *testing.T, tc *TestContext) {
+	ctx := context.Background()
+	store := grub.NewStore[HookedValue](tc.Provider)
+
+	a := &HookedValue{ID: "ha", Name: "A", Count: 1}
+	b := &HookedValue{ID: "hb", Name: "B", Count: 2}
+	if err := store.Set(ctx, "hook-batch-a", a, 0); err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
+	if err := store.Set(ctx, "hook-batch-b", b, 0); err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
+
+	results, err := store.GetBatch(ctx, []string{"hook-batch-a", "hook-batch-b"})
+	if err != nil {
+		t.Fatalf("GetBatch failed: %v", err)
+	}
+	for k, v := range results {
+		if !v.afterLoadCalled {
+			t.Errorf("AfterLoad not called for key %s", k)
+		}
+	}
+}
+
+func testHookBeforeSaveSet(t *testing.T, tc *TestContext) {
+	ctx := context.Background()
+	store := grub.NewStore[HookedValue](tc.Provider)
+
+	value := &HookedValue{ID: "save-1", Name: "Saved", Count: 10}
+	if err := store.Set(ctx, "hook-save-key", value, 0); err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
+
+	got, err := store.Get(ctx, "hook-save-key")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if got.Name != "Saved" {
+		t.Errorf("expected name 'Saved', got %q", got.Name)
+	}
+}
+
+func testHookBeforeSaveError(t *testing.T, tc *TestContext) {
+	ctx := context.Background()
+	store := grub.NewStore[FailingBeforeSaveValue](tc.Provider)
+
+	value := &FailingBeforeSaveValue{ID: "fail-1", Name: "Fail"}
+	err := store.Set(ctx, "hook-fail-key", value, 0)
+	if !errors.Is(err, errTestHook) {
+		t.Fatalf("expected hook error, got: %v", err)
+	}
+
+	// Verify nothing was persisted
+	store2 := grub.NewStore[TestValue](tc.Provider)
+	_, err = store2.Get(ctx, "hook-fail-key")
+	if !errors.Is(err, grub.ErrNotFound) {
+		t.Errorf("expected ErrNotFound (record should not exist), got: %v", err)
+	}
+}
+
 // --- CRUD Tests ---
 
 func testGetNotFound(t *testing.T, tc *TestContext) {

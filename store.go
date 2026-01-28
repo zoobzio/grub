@@ -45,22 +45,37 @@ func (s *Store[T]) Get(ctx context.Context, key string) (*T, error) {
 	if err := s.codec.Decode(data, &value); err != nil {
 		return nil, err
 	}
+	if err := callAfterLoad(ctx, &value); err != nil {
+		return nil, err
+	}
 	return &value, nil
 }
 
 // Set stores value at key with optional TTL.
 // TTL of 0 means no expiration.
 func (s *Store[T]) Set(ctx context.Context, key string, value *T, ttl time.Duration) error {
+	if err := callBeforeSave(ctx, value); err != nil {
+		return err
+	}
 	data, err := s.codec.Encode(value)
 	if err != nil {
 		return err
 	}
-	return s.provider.Set(ctx, key, data, ttl)
+	if err := s.provider.Set(ctx, key, data, ttl); err != nil {
+		return err
+	}
+	return callAfterSave(ctx, value)
 }
 
 // Delete removes the value at key.
 func (s *Store[T]) Delete(ctx context.Context, key string) error {
-	return s.provider.Delete(ctx, key)
+	if err := callBeforeDelete[T](ctx); err != nil {
+		return err
+	}
+	if err := s.provider.Delete(ctx, key); err != nil {
+		return err
+	}
+	return callAfterDelete[T](ctx)
 }
 
 // Exists checks whether a key exists.
@@ -87,6 +102,9 @@ func (s *Store[T]) GetBatch(ctx context.Context, keys []string) (map[string]*T, 
 		if err := s.codec.Decode(data, &value); err != nil {
 			return nil, err
 		}
+		if err := callAfterLoad(ctx, &value); err != nil {
+			return nil, err
+		}
 		result[k] = &value
 	}
 	return result, nil
@@ -97,13 +115,24 @@ func (s *Store[T]) GetBatch(ctx context.Context, keys []string) (map[string]*T, 
 func (s *Store[T]) SetBatch(ctx context.Context, items map[string]*T, ttl time.Duration) error {
 	raw := make(map[string][]byte, len(items))
 	for k, v := range items {
+		if err := callBeforeSave(ctx, v); err != nil {
+			return err
+		}
 		data, err := s.codec.Encode(v)
 		if err != nil {
 			return err
 		}
 		raw[k] = data
 	}
-	return s.provider.SetBatch(ctx, raw, ttl)
+	if err := s.provider.SetBatch(ctx, raw, ttl); err != nil {
+		return err
+	}
+	for _, v := range items {
+		if err := callAfterSave(ctx, v); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Atomic returns an atom-based view of this store.

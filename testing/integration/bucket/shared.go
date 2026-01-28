@@ -60,6 +60,109 @@ func RunListTests(t *testing.T, tc *TestContext) {
 	t.Run("ListWithLimit", func(t *testing.T) { testListWithLimit(t, tc) })
 }
 
+// HookedPayload is a model with lifecycle hooks for integration testing.
+type HookedPayload struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+
+	afterLoadCalled bool
+}
+
+func (h *HookedPayload) AfterLoad(_ context.Context) error {
+	h.afterLoadCalled = true
+	return nil
+}
+
+func (h *HookedPayload) BeforeSave(_ context.Context) error { return nil }
+func (h *HookedPayload) AfterSave(_ context.Context) error  { return nil }
+
+// FailingBeforeSavePayload always fails BeforeSave.
+type FailingBeforeSavePayload struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+var errTestHook = errors.New("test hook error")
+
+func (f *FailingBeforeSavePayload) BeforeSave(_ context.Context) error { return errTestHook }
+
+// RunHookTests runs the lifecycle hook test suite for Buckets.
+func RunHookTests(t *testing.T, tc *TestContext) {
+	t.Run("AfterLoadOnGet", func(t *testing.T) { testHookAfterLoadGet(t, tc) })
+	t.Run("BeforeSaveOnPut", func(t *testing.T) { testHookBeforeSavePut(t, tc) })
+	t.Run("BeforeSaveErrorAborts", func(t *testing.T) { testHookBeforeSaveError(t, tc) })
+}
+
+func testHookAfterLoadGet(t *testing.T, tc *TestContext) {
+	ctx := context.Background()
+	bucket := grub.NewBucket[HookedPayload](tc.Provider)
+
+	obj := &grub.Object[HookedPayload]{
+		Key:         "hook-get-key",
+		ContentType: "application/json",
+		Data:        HookedPayload{ID: "h1", Name: "Hook", Count: 1},
+	}
+	if err := bucket.Put(ctx, obj); err != nil {
+		t.Fatalf("Put failed: %v", err)
+	}
+
+	got, err := bucket.Get(ctx, "hook-get-key")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if !got.Data.afterLoadCalled {
+		t.Error("AfterLoad not called on Get")
+	}
+	if got.Data.Name != "Hook" {
+		t.Errorf("expected name 'Hook', got %q", got.Data.Name)
+	}
+}
+
+func testHookBeforeSavePut(t *testing.T, tc *TestContext) {
+	ctx := context.Background()
+	bucket := grub.NewBucket[HookedPayload](tc.Provider)
+
+	obj := &grub.Object[HookedPayload]{
+		Key:         "hook-put-key",
+		ContentType: "application/json",
+		Data:        HookedPayload{ID: "s1", Name: "Saved", Count: 10},
+	}
+	if err := bucket.Put(ctx, obj); err != nil {
+		t.Fatalf("Put failed: %v", err)
+	}
+
+	got, err := bucket.Get(ctx, "hook-put-key")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if got.Data.Name != "Saved" {
+		t.Errorf("expected name 'Saved', got %q", got.Data.Name)
+	}
+}
+
+func testHookBeforeSaveError(t *testing.T, tc *TestContext) {
+	ctx := context.Background()
+	bucket := grub.NewBucket[FailingBeforeSavePayload](tc.Provider)
+
+	obj := &grub.Object[FailingBeforeSavePayload]{
+		Key:         "hook-fail-key",
+		ContentType: "application/json",
+		Data:        FailingBeforeSavePayload{ID: "f1", Name: "Fail"},
+	}
+	err := bucket.Put(ctx, obj)
+	if !errors.Is(err, errTestHook) {
+		t.Fatalf("expected hook error, got: %v", err)
+	}
+
+	// Verify nothing was persisted
+	bucket2 := grub.NewBucket[TestPayload](tc.Provider)
+	_, err = bucket2.Get(ctx, "hook-fail-key")
+	if !errors.Is(err, grub.ErrNotFound) {
+		t.Errorf("expected ErrNotFound (record should not exist), got: %v", err)
+	}
+}
+
 // --- CRUD Tests ---
 
 func testGetNotFound(t *testing.T, tc *TestContext) {

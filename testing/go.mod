@@ -179,7 +179,7 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	github.com/zoobzio/capitan v1.0.0 // indirect
 	github.com/zoobzio/dbml v1.0.0 // indirect
-	github.com/zoobzio/soy v1.0.1 // indirect
+	github.com/zoobzio/soy v1.0.3 // indirect
 	go.mongodb.org/mongo-driver v1.14.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.38.0 // indirect

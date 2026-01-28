@@ -55,3 +55,7 @@ func TestBadger_TTL(t *testing.T) {
 func TestBadger_Batch(t *testing.T) {
 	kv.RunBatchTests(t, tc)
 }
+
+func TestBadger_Hooks(t *testing.T) {
+	kv.RunHookTests(t, tc)
+}

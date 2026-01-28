@@ -120,3 +120,7 @@ func TestAzure_Atomic(t *testing.T) {
 func TestAzure_List(t *testing.T) {
 	bucket.RunListTests(t, tc)
 }
+
+func TestAzure_Hooks(t *testing.T) {
+	bucket.RunHookTests(t, tc)
+}

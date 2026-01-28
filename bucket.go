@@ -44,6 +44,9 @@ func (b *Bucket[T]) Get(ctx context.Context, key string) (*Object[T], error) {
 	if err := b.codec.Decode(data, &payload); err != nil {
 		return nil, err
 	}
+	if err := callAfterLoad(ctx, &payload); err != nil {
+		return nil, err
+	}
 	return &Object[T]{
 		Key:         info.Key,
 		ContentType: info.ContentType,
@@ -56,6 +59,9 @@ func (b *Bucket[T]) Get(ctx context.Context, key string) (*Object[T], error) {
 
 // Put stores an object at key.
 func (b *Bucket[T]) Put(ctx context.Context, obj *Object[T]) error {
+	if err := callBeforeSave(ctx, &obj.Data); err != nil {
+		return err
+	}
 	data, err := b.codec.Encode(obj.Data)
 	if err != nil {
 		return err
@@ -66,12 +72,21 @@ func (b *Bucket[T]) Put(ctx context.Context, obj *Object[T]) error {
 		Size:        int64(len(data)),
 		Metadata:    obj.Metadata,
 	}
-	return b.provider.Put(ctx, obj.Key, data, info)
+	if err := b.provider.Put(ctx, obj.Key, data, info); err != nil {
+		return err
+	}
+	return callAfterSave(ctx, &obj.Data)
 }
 
 // Delete removes the object at key.
 func (b *Bucket[T]) Delete(ctx context.Context, key string) error {
-	return b.provider.Delete(ctx, key)
+	if err := callBeforeDelete[T](ctx); err != nil {
+		return err
+	}
+	if err := b.provider.Delete(ctx, key); err != nil {
+		return err
+	}
+	return callAfterDelete[T](ctx)
 }
 
 // Exists checks whether a key exists.
