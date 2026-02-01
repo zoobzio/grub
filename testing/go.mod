@@ -16,6 +16,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/microsoft/go-mssqldb v1.9.0
 	github.com/milvus-io/milvus-sdk-go/v2 v2.4.2
+	github.com/minio/minio-go/v7 v7.0.87
 	github.com/pinecone-io/go-pinecone/v2 v2.2.0
 	github.com/qdrant/go-client v1.12.0
 	github.com/redis/go-redis/v9 v9.17.2
@@ -23,6 +24,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/localstack v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/mariadb v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/milvus v0.40.0
+	github.com/testcontainers/testcontainers-go/modules/minio v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/mssql v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/pinecone v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.40.0
@@ -40,6 +42,7 @@ require (
 	github.com/zoobzio/grub/bolt v0.0.0
 	github.com/zoobzio/grub/gcs v0.0.0
 	github.com/zoobzio/grub/milvus v0.0.0
+	github.com/zoobzio/grub/minio v0.0.0
 	github.com/zoobzio/grub/pinecone v0.0.0
 	github.com/zoobzio/grub/qdrant v0.0.0
 	github.com/zoobzio/grub/redis v0.0.0
@@ -110,6 +113,7 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/getsentry/sentry-go v0.30.0 // indirect
+	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -124,6 +128,7 @@ require (
 	github.com/go-openapi/strfmt v0.23.0 // indirect
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/go-openapi/validate v0.24.0 // indirect
+	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
@@ -138,6 +143,7 @@ require (
 	github.com/jackc/pgx/v5 v5.6.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20250827001030-24949be3fa54 // indirect
@@ -146,6 +152,8 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mdelapenya/tlscert v0.2.0 // indirect
 	github.com/milvus-io/milvus-proto/go-api/v2 v2.6.1-0.20250819024338-07695f709619 // indirect
+	github.com/minio/crc64nvme v1.0.1 // indirect
+	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.1.0 // indirect
@@ -167,6 +175,7 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
+	github.com/rs/xid v1.6.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.25.9 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.6.0 // indirect
@@ -218,6 +227,7 @@ replace (
 	github.com/zoobzio/grub/gcs v0.0.0 => ../gcs
 	github.com/zoobzio/grub/mariadb v0.0.0 => ../mariadb
 	github.com/zoobzio/grub/milvus v0.0.0 => ../milvus
+	github.com/zoobzio/grub/minio v0.0.0 => ../minio
 	github.com/zoobzio/grub/mssql v0.0.0 => ../mssql
 	github.com/zoobzio/grub/pinecone v0.0.0 => ../pinecone
 	github.com/zoobzio/grub/postgres v0.0.0 => ../postgres
