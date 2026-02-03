@@ -17,8 +17,8 @@ github.com/mattn/go-sqlite3 v1.14.22 h1:2gZY6PC6kBnID23Tichd1K+Z0oS6nE/XwU+Vz/5o
 github.com/mattn/go-sqlite3 v1.14.22/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
 github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=
 github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
-github.com/zoobzio/astql v1.0.5 h1:799pEEaMbT74EFfniDnbBdc6acE+kDw1xIJaPuU2i3k=
-github.com/zoobzio/astql v1.0.5/go.mod h1:I7yNnjuD3KxCoNGyBbz+zDxT/osgHaQ5RsHGdEKEwMw=
+github.com/zoobzio/astql v1.0.6 h1:im7wYc9M9HaqAaMDliZXAStir4YHpmgfpd9aaSLMl/o=
+github.com/zoobzio/astql v1.0.6/go.mod h1:I7yNnjuD3KxCoNGyBbz+zDxT/osgHaQ5RsHGdEKEwMw=
 github.com/zoobzio/atom v1.0.0 h1:vFFfheHPMJQztp+/BmTWTIRfixjojqmpD6uM1X6xkuo=
 github.com/zoobzio/atom v1.0.0/go.mod h1:+ciiuq93FK54xwtktR196qPqb2tyt643IUcL94ETk9s=
 github.com/zoobzio/capitan v1.0.0 h1:hEB8XX/FmtIDHKjjTJrUWXkDiZTYa/Jtd/qWO0yc2Dc=
@@ -29,8 +29,8 @@ github.com/zoobzio/edamame v1.0.1 h1:Mynav/EvOEVjQ36JrKm9I3k7nm9t3VgGC1bpyw2rFMA
 github.com/zoobzio/edamame v1.0.1/go.mod h1:UVfTcjd//Nfs2lLNWrQqomd0O9f0ic31PftXz3KvyWw=
 github.com/zoobzio/sentinel v1.0.2 h1:hTs5Ke2Vi0VgOkoHSJF9G3BYnxTQjMbvOH+qbbQLaoY=
 github.com/zoobzio/sentinel v1.0.2/go.mod h1:gtsD0AYlTEI8ajpEQ3azb7BDZicdsESOB1dJpQqgDKc=
-github.com/zoobzio/soy v1.0.3 h1:Qkl/v2XHv2bd/zo8YfVtIygKtzHclRwvXFnGVpRpwbg=
-github.com/zoobzio/soy v1.0.3/go.mod h1:QbHYncFp2bUBfZegzSrTAcDoFKlLGQESKNY43OUu5q4=
+github.com/zoobzio/soy v1.0.5 h1:CY8Q03FVTvI6mD2UuAOoEfrJopOu4IKemtcen46FZ/w=
+github.com/zoobzio/soy v1.0.5/go.mod h1:scqPy7kCVCQ6nrhmMQWdYRJ2b2BCQHtcXsu5NlRzgLQ=
 github.com/zoobzio/vecna v0.0.2 h1:n4SEXmp1k5JrparT7PfPS6RTH4xd/NTkvXZwQg7r8/Q=
 github.com/zoobzio/vecna v0.0.2/go.mod h1:NQxYrpZSp8Lxqk5n8f3UB95bqMdG1g+tF1Sxxawds6Y=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
